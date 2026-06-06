@@ -1,0 +1,24 @@
+# ShortForge AI - Git Ignore
+
+# API Keys (IMPORTANT — ye kabhi push mat karna!)
+config.py
+
+# Generated videos
+output/
+
+# Temporary files
+temp/
+__pycache__/
+*.pyc
+
+# AI Engine binaries (too large for GitHub)
+AI_engine/
+
+# Assets (music files can be large)
+assets/music/*.mp3
+assets/music/*.wav
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
