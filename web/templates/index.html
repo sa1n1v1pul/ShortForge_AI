@@ -47,29 +47,23 @@
                     </div>
                 </div>
 
-                <!-- Topic / Prompt -->
+                <!-- Script / Prompt -->
                 <div class="form-group">
                     <div class="label-row">
-                        <label>📝 Topic / Prompt</label>
+                        <label>📝 Story Script</label>
                         <div class="toggle-group">
-                            <span class="toggle-label" id="modeLabel">Auto AI</span>
-                            <button class="toggle-btn" id="modeToggle" data-mode="auto">
+                            <span class="toggle-label-alt">Manual</span>
+                            <button class="toggle-btn active" id="modeToggle" data-mode="auto">
                                 <span class="toggle-slider"></span>
                             </button>
-                            <span class="toggle-label-alt">Manual</span>
+                            <span class="toggle-label" id="modeLabel">Auto AI</span>
                         </div>
                     </div>
-                    <div id="autoMode">
-                        <input type="text" id="topicInput" 
-                               placeholder="e.g., कृष्ण की माखन चोरी और यशोदा माँ का गुस्सा" 
-                               class="text-input">
-                        <p class="help-text">खाली छोड़ दें तो AI खुद topic चुनेगा</p>
-                    </div>
-                    <div id="manualMode" style="display: none;">
+                    <div>
                         <textarea id="promptInput" rows="4" 
-                                  placeholder="अपनी कहानी / स्क्रिप्ट यहाँ लिखें... AI इसे scenes में बाँट देगा"
-                                  class="text-input textarea"></textarea>
-                        <p class="help-text">अपनी पूरी कहानी लिखें, AI उसे video scenes में convert कर देगा</p>
+                                  placeholder="AI will generate the script automatically based on the selected character."
+                                  class="text-input textarea" disabled></textarea>
+                        <p class="help-text" id="promptHelp">Auto mode is ON. Just click Generate!</p>
                     </div>
                 </div>
 
@@ -229,12 +223,29 @@
         // ═══════════════════════════════════════════════════════
         //  MODE TOGGLE (Auto/Manual)
         // ═══════════════════════════════════════════════════════
+        let isAutoMode = true;
         document.getElementById('modeToggle').addEventListener('click', function() {
-            isManualMode = !isManualMode;
-            this.classList.toggle('active', isManualMode);
-            document.getElementById('autoMode').style.display = isManualMode ? 'none' : 'block';
-            document.getElementById('manualMode').style.display = isManualMode ? 'block' : 'none';
-            document.getElementById('modeLabel').textContent = isManualMode ? 'Manual' : 'Auto AI';
+            isAutoMode = !isAutoMode;
+            this.classList.toggle('active', isAutoMode);
+            
+            const promptInput = document.getElementById('promptInput');
+            const promptHelp = document.getElementById('promptHelp');
+            const modeLabel = document.getElementById('modeLabel');
+            
+            if (isAutoMode) {
+                promptInput.disabled = true;
+                promptInput.value = '';
+                promptInput.placeholder = "AI will generate the script automatically based on the selected character.";
+                promptHelp.textContent = "Auto mode is ON. Just click Generate!";
+                modeLabel.className = "toggle-label";
+                this.previousElementSibling.className = "toggle-label-alt";
+            } else {
+                promptInput.disabled = false;
+                promptInput.placeholder = "अपनी कहानी / स्क्रिप्ट यहाँ लिखें... AI इसे scenes में बाँट देगा";
+                promptHelp.textContent = "अपनी पूरी कहानी लिखें, AI उसे video scenes में convert कर देगा";
+                modeLabel.className = "toggle-label-alt";
+                this.previousElementSibling.className = "toggle-label";
+            }
         });
 
         // ═══════════════════════════════════════════════════════
@@ -278,8 +289,8 @@
                 niche: selectedNiche,
                 duration: selectedDuration,
                 animate: isAnimateOn,
-                mode: isManualMode ? 'manual' : 'auto',
-                topic: document.getElementById('topicInput')?.value || '',
+                mode: isAutoMode ? 'auto' : 'manual',
+                topic: '', // Removed topic field, using only niche for auto
                 prompt: document.getElementById('promptInput')?.value || '',
             };
 
