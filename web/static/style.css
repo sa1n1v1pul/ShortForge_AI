@@ -34,9 +34,9 @@
     --danger: #ef4444;
 
     /* Extreme border radii for pill shapes */
-    --radius-xl: 40px;
-    --radius-lg: 32px;
-    --radius-md: 20px;
+    --radius-xl: 24px;
+    --radius-lg: 16px;
+    --radius-md: 12px;
     --radius-pill: 9999px;
     
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -211,11 +211,11 @@ body::before {
 /* ═══════════════════════════════════════════════════════════ */
 .app-main {
     max-width: 1400px;
-    margin: 40px auto;
+    margin: 24px auto;
     padding: 0 24px;
     display: grid;
     grid-template-columns: 1fr 450px;
-    gap: 40px;
+    gap: 24px;
     position: relative;
     z-index: 1;
 }
@@ -239,14 +239,14 @@ body::before {
 }
 
 .card-header {
-    padding: 28px 36px;
+    padding: 20px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="dark"] .card-header { border-bottom-color: rgba(0,0,0,0.2); }
 
 .card-header h2 {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.5px;
     display: flex;
@@ -255,22 +255,22 @@ body::before {
 }
 
 .card-body {
-    padding: 36px;
+    padding: 24px;
 }
 
 /* ═══════════════════════════════════════════════════════════ */
 /*  FORM GROUPS & TYPOGRAPHY                                   */
 /* ═══════════════════════════════════════════════════════════ */
 .form-group {
-    margin-bottom: 36px;
+    margin-bottom: 24px;
 }
 
 .form-group label {
     display: block;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     color: var(--text-primary);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .label-row {
@@ -360,7 +360,7 @@ select.text-input option {
 }
 
 .niche-btn, .duration-btn {
-    padding: 16px;
+    padding: 12px 16px;
     background: var(--glass-input);
     border: 1.5px solid var(--glass-border);
     border-radius: var(--radius-pill);
@@ -380,7 +380,7 @@ select.text-input option {
 
 .duration-btn {
     flex-direction: column;
-    padding: 18px 8px;
+    padding: 12px 8px;
     gap: 6px;
     border-radius: var(--radius-lg);
 }
@@ -422,8 +422,8 @@ select.text-input option {
 .toggle-label { color: var(--accent); }
 
 .toggle-btn {
-    width: 64px;
-    height: 34px;
+    width: 48px;
+    height: 26px;
     border-radius: var(--radius-pill);
     background: var(--glass-input);
     border: 1.5px solid var(--glass-border);
@@ -440,8 +440,8 @@ select.text-input option {
     position: absolute;
     top: 3px;
     left: 4px;
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: var(--text-muted);
     transition: var(--transition);
@@ -455,7 +455,7 @@ select.text-input option {
 }
 
 .toggle-btn.active .toggle-slider {
-    left: 34px;
+    left: 24px;
     background: white;
 }
 
@@ -463,12 +463,12 @@ select.text-input option {
 /*  PLAY BUTTON (Liquid Accent)                                */
 /* ═══════════════════════════════════════════════════════════ */
 .play-sample-btn {
-    padding: 16px 28px;
+    padding: 12px 20px;
     background: var(--accent-glow);
     border: 1.5px solid var(--accent);
     border-radius: var(--radius-pill);
     color: var(--accent);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     cursor: pointer;
     transition: var(--transition);
@@ -507,12 +507,12 @@ select.text-input option {
 /* ═══════════════════════════════════════════════════════════ */
 .generate-btn {
     width: 100%;
-    padding: 24px;
+    padding: 16px;
     background: var(--accent-gradient);
     border: none;
     border-radius: var(--radius-pill);
     color: white;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 800;
     cursor: pointer;
     display: flex;
