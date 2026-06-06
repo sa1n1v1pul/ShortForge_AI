@@ -10,10 +10,8 @@ import edge_tts
 from pathlib import Path
 
 from config import (
-    VOICE_ID_HINDI_FEMALE, VOICE_ID_HINDI_MALE,
-    VOICE_ID_ENGLISH_FEMALE, VOICE_ID_ENGLISH_MALE,
     VOICE_RATE_HINDI, VOICE_RATE_ENGLISH,
-    VOICE_VOLUME, TEMP_DIR, NICHES,
+    VOICE_VOLUME, TEMP_DIR, NICHES, VOICE_PROFILES
 )
 
 
@@ -45,6 +43,7 @@ async def _generate_voice_async(
     voice_id: str,
     rate: str,
     volume: str,
+    pitch: str,
 ) -> tuple[float, list[dict]]:
     """
     Generate voice audio file and extract word timings.
@@ -55,6 +54,7 @@ async def _generate_voice_async(
         voice=voice_id,
         rate=rate,
         volume=volume,
+        pitch=pitch,
     )
 
     # Collect word timings from SSML events
@@ -100,15 +100,20 @@ def generate_all_voices(
     job_id: str,
     language: str = "hindi",
     niche: str = "",
+    voice_profile: str = "female",
 ) -> list[dict]:
     """Generate voice audio for all scenes."""
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    voice_id = _get_voice_id(language, niche)
+    # Get voice ID and pitch from config
+    profile = VOICE_PROFILES.get(language, VOICE_PROFILES["hindi"]).get(voice_profile, VOICE_PROFILES["hindi"]["female"])
+    voice_id = profile["voice_id"]
+    pitch = profile["pitch"]
+    
     rate = _get_voice_rate(language)
 
     print(f"\n🗣️  Generating voices for {len(scenes)} scenes...")
-    print(f"   Voice: {voice_id} | Rate: {rate}")
+    print(f"   Voice: {voice_id} | Pitch: {pitch} | Rate: {rate}")
 
     async def _gen_all():
         for i, scene in enumerate(scenes):
@@ -129,6 +134,7 @@ def generate_all_voices(
                     voice_id=voice_id,
                     rate=rate,
                     volume=VOICE_VOLUME,
+                    pitch=pitch,
                 )
 
                 scene["audio_path"] = output_path

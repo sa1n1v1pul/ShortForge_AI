@@ -72,6 +72,23 @@
                     </div>
                 </div>
 
+                <!-- Language & Voice Selector -->
+                <div class="form-group">
+                    <label>🗣️ Language & Voice</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;" id="languageGrid">
+                        <button class="niche-btn active" data-lang="hindi" style="flex: 1; padding: 10px;">Hindi</button>
+                        <button class="niche-btn" data-lang="english" style="flex: 1; padding: 10px;">English</button>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="voiceSelect" class="text-input" style="flex: 1; cursor: pointer;">
+                            <!-- Options injected by JS -->
+                        </select>
+                        <button id="playVoiceBtn" type="button" class="btn" style="padding: 10px 15px; width: auto; background: rgba(255,255,255,0.1);">
+                            ▶️ Play Sample
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Duration Selector -->
                 <div class="form-group">
                     <label>⏱️ Video Duration</label>
@@ -298,7 +315,50 @@
         }
 
         // ═══════════════════════════════════════════════════════
-        //  GENERATE
+        //  VOICE PREVIEW & LANGUAGE
+        // ═══════════════════════════════════════════════════════
+        const voiceProfiles = {{ voice_profiles | tojson }};
+        const voiceSelect = document.getElementById('voiceSelect');
+        const playVoiceBtn = document.getElementById('playVoiceBtn');
+        let selectedLanguage = 'hindi';
+        let currentAudio = null;
+
+        function renderVoices(lang) {
+            voiceSelect.innerHTML = '';
+            const profiles = voiceProfiles[lang];
+            for (const [key, profile] of Object.entries(profiles)) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = profile.name;
+                if(key === 'female') opt.selected = true;
+                voiceSelect.appendChild(opt);
+            }
+        }
+        // Initial render
+        renderVoices(selectedLanguage);
+
+        // Language buttons
+        document.querySelectorAll('#languageGrid .niche-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#languageGrid .niche-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedLanguage = btn.dataset.lang;
+                renderVoices(selectedLanguage);
+            });
+        });
+
+        playVoiceBtn.addEventListener('click', () => {
+            const voiceKey = voiceSelect.value;
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = new Audio(`/static/samples/${selectedLanguage}_${voiceKey}.mp3`);
+            currentAudio.play().catch(e => console.error("Audio play failed:", e));
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  GENERATE BUTTON
         // ═══════════════════════════════════════════════════════
         async function startGeneration() {
             const btn = document.getElementById('generateBtn');
@@ -309,12 +369,14 @@
             const finalNiche = customNiche || selectedNiche;
 
             const payload = {
+                language: selectedLanguage,
                 niche: finalNiche,
                 duration: selectedDuration,
                 animate: isAnimateOn,
                 mode: isAutoMode ? 'auto' : 'manual',
                 topic: '', // Removed topic field, using only niche for auto
                 prompt: document.getElementById('promptInput')?.value || '',
+                voice_profile: voiceSelect.value,
             };
 
             try {

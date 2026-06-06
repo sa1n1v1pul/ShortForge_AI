@@ -102,6 +102,7 @@ def create_single_video(
     enable_animation: bool = False,
     manual_prompt: str | None = None,
     progress_callback=None,
+    voice_profile: str = "female",
 ) -> str | None:
     """
     Generate a single video from scratch.
@@ -112,6 +113,7 @@ def create_single_video(
         enable_animation: Enable Veo animation (expensive!)
         manual_prompt: User's own script text (manual mode)
         progress_callback: Function(step, message) for UI progress updates
+        voice_profile: Voice identifier from config.VOICE_PROFILES
     """
     job_id = str(uuid.uuid4())[:8]
     start_time = time.time()
@@ -142,13 +144,14 @@ def create_single_video(
         )
         scenes = script["scenes"]
 
-        # ── Step 2: Generate Voices ──────────────────────────────
-        _progress("voice", f"Generating Hindi voice for {len(scenes)} scenes...")
+        # ── Step 2: Generate Audio (Voices) ─────────────────────────
+        _progress("voice", f"Generating voices ({len(scenes)} scenes)...")
         scenes = generate_all_voices(
             scenes=scenes,
             job_id=job_id,
             language=language,
             niche=niche,
+            voice_profile=voice_profile,
         )
 
         # ── Step 3: Generate/Fetch Images ─────────────────────────

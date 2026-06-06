@@ -19,7 +19,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from config import NICHES, OUTPUT_DIR, DEFAULT_NICHE, DEFAULT_LANGUAGE, DEFAULT_DURATION
+from config import NICHES, OUTPUT_DIR, DEFAULT_NICHE, DEFAULT_LANGUAGE, DEFAULT_DURATION, VOICE_PROFILES
 
 app = Flask(__name__)
 
@@ -88,8 +88,7 @@ def _run_video_job(job_id: str, params: dict):
 
 @app.route("/")
 def index():
-    """Main dashboard page."""
-    return render_template("index.html", niches=NICHES)
+    return render_template("index.html", niches=NICHES, voice_profiles=VOICE_PROFILES)
 
 
 @app.route("/api/generate", methods=["POST"])
