@@ -1,146 +1,160 @@
 """
-ShortForge AI — Voice Generator (Edge-TTS)
-=============================================
-Converts text to natural-sounding speech using Microsoft Edge TTS (FREE).
-Also extracts word-level timing for subtitle sync.
+ShortForge AI — Voice Generator v2 (Edge-TTS)
+================================================
+Generates natural Hindi/English voices using Microsoft Edge TTS (FREE).
+Supports male/female voices per niche, with word-level timing.
 """
 
 import asyncio
-import json
-import re
+import edge_tts
 from pathlib import Path
 
-import edge_tts
-
 from config import (
-    VOICE_ID_ENGLISH,
-    VOICE_ID_HINDI,
-    VOICE_RATE,
-    VOICE_VOLUME,
-    TEMP_DIR,
+    VOICE_ID_HINDI_FEMALE, VOICE_ID_HINDI_MALE,
+    VOICE_ID_ENGLISH_FEMALE, VOICE_ID_ENGLISH_MALE,
+    VOICE_RATE_HINDI, VOICE_RATE_ENGLISH,
+    VOICE_VOLUME, TEMP_DIR, NICHES,
 )
 
 
-def _get_voice_id(language: str) -> str:
-    """Get the Edge-TTS voice ID for the given language."""
-    voices = {
-        "english": VOICE_ID_ENGLISH,
-        "hindi": VOICE_ID_HINDI,
-        "hinglish": VOICE_ID_HINDI,  # Hinglish uses Hindi voice
-    }
-    return voices.get(language, VOICE_ID_ENGLISH)
+def _get_voice_id(language: str, niche: str = "") -> str:
+    """Get the appropriate voice ID based on language and niche preference."""
+    # Check niche-specific voice preference
+    niche_voice_pref = NICHES.get(niche, {}).get("voice", "female")
+
+    if language in ("hindi", "hinglish"):
+        if niche_voice_pref == "male":
+            return VOICE_ID_HINDI_MALE
+        return VOICE_ID_HINDI_FEMALE
+    else:
+        if niche_voice_pref == "male":
+            return VOICE_ID_ENGLISH_MALE
+        return VOICE_ID_ENGLISH_FEMALE
+
+
+def _get_voice_rate(language: str) -> str:
+    """Get speech rate based on language."""
+    if language in ("hindi", "hinglish"):
+        return VOICE_RATE_HINDI
+    return VOICE_RATE_ENGLISH
 
 
 async def _generate_voice_async(
     text: str,
     output_path: str,
     voice_id: str,
-    rate: str = VOICE_RATE,
-    volume: str = VOICE_VOLUME,
-) -> list[dict]:
+    rate: str,
+    volume: str,
+) -> tuple[float, list[dict]]:
     """
-    Generate voice audio and return word-level timing data.
-    Returns list of dicts: [{"word": "Hello", "start": 0.5, "end": 0.8}, ...]
+    Generate voice audio file and extract word timings.
+    Returns (duration_seconds, word_timings).
     """
-    communicate = edge_tts.Communicate(text, voice_id, rate=rate, volume=volume)
-
-    word_timings = []
-
-    # Write audio and collect timing via SubMaker
-    with open(output_path, "wb") as f:
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                f.write(chunk["data"])
-            elif chunk["type"] == "WordBoundary":
-                word_timings.append({
-                    "word": chunk["text"],
-                    "start": chunk["offset"] / 10_000_000,  # Convert from 100ns to seconds
-                    "end": (chunk["offset"] + chunk["duration"]) / 10_000_000,
-                })
-
-    return word_timings
-
-
-def generate_scene_voice(
-    text: str,
-    scene_index: int,
-    job_id: str,
-    language: str = "english",
-) -> tuple[str, float, list[dict]]:
-    """
-    Generate voice for a single scene.
-
-    Returns:
-        (audio_path, duration_seconds, word_timings)
-    """
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-    output_path = str(TEMP_DIR / f"{job_id}_scene_{scene_index:03d}.mp3")
-    voice_id = _get_voice_id(language)
-
-    print(f"   🗣️  Scene {scene_index + 1}: Generating voice...")
-
-    # Run async TTS
-    word_timings = asyncio.run(
-        _generate_voice_async(text, output_path, voice_id)
+    communicate = edge_tts.Communicate(
+        text=text,
+        voice=voice_id,
+        rate=rate,
+        volume=volume,
     )
 
-    # Calculate duration from last word timing, or from file
-    if word_timings:
-        duration = word_timings[-1]["end"] + 0.3  # Add small padding
-    else:
-        # Fallback: estimate from text length (avg 3 words/sec)
-        word_count = len(text.split())
-        duration = word_count / 2.8
+    # Collect word timings from SSML events
+    word_timings = []
 
-    preview = text[:50] + "..." if len(text) > 50 else text
-    print(f"         \"{preview}\"")
-    print(f"         Duration: {duration:.1f}s | Words: {len(word_timings)}")
+    with open(output_path, "wb") as audio_file:
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_file.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                word_timings.append({
+                    "text": chunk["text"],
+                    "offset": chunk["offset"] / 10_000_000,  # Convert to seconds
+                    "duration": chunk["duration"] / 10_000_000,
+                })
 
-    return output_path, duration, word_timings
+    # Calculate total duration from file
+    duration = 0.0
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", output_path],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            duration = float(result.stdout.strip())
+    except Exception:
+        # Estimate from word timings
+        if word_timings:
+            last = word_timings[-1]
+            duration = last["offset"] + last["duration"] + 0.5
+        else:
+            # Rough estimate: ~3 words per second for Hindi
+            word_count = len(text.split())
+            duration = max(5.0, word_count / 2.5)
+
+    return duration, word_timings
 
 
 def generate_all_voices(
     scenes: list[dict],
     job_id: str,
-    language: str = "english",
+    language: str = "hindi",
+    niche: str = "",
 ) -> list[dict]:
-    """
-    Generate voice for all scenes.
+    """Generate voice audio for all scenes."""
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    Returns list of scene info dicts with audio paths, durations, and timings.
-    """
+    voice_id = _get_voice_id(language, niche)
+    rate = _get_voice_rate(language)
+
     print(f"\n🗣️  Generating voices for {len(scenes)} scenes...")
+    print(f"   Voice: {voice_id} | Rate: {rate}")
 
-    results = []
-    for i, scene in enumerate(scenes):
-        audio_path, duration, word_timings = generate_scene_voice(
-            text=scene["text"],
-            scene_index=i,
-            job_id=job_id,
-            language=language,
-        )
-        results.append({
-            "index": i,
-            "text": scene["text"],
-            "image_query": scene.get("image_query", "abstract background"),
-            "audio_path": audio_path,
-            "duration": duration,
-            "word_timings": word_timings,
-        })
+    async def _gen_all():
+        for i, scene in enumerate(scenes):
+            text = scene.get("text", "")
+            if not text:
+                continue
 
-    total_duration = sum(r["duration"] for r in results)
+            output_path = str(TEMP_DIR / f"{job_id}_voice_{i:03d}.mp3")
+
+            print(f"   🗣️  Scene {i + 1}: Generating voice...")
+            preview = text[:50] + "..." if len(text) > 50 else text
+            print(f"         \"{preview}\"")
+
+            try:
+                duration, word_timings = await _generate_voice_async(
+                    text=text,
+                    output_path=output_path,
+                    voice_id=voice_id,
+                    rate=rate,
+                    volume=VOICE_VOLUME,
+                )
+
+                scene["audio_path"] = output_path
+                scene["duration"] = duration
+                scene["word_timings"] = word_timings
+                print(f"         Duration: {duration:.1f}s | Words: {len(word_timings)}")
+
+            except Exception as e:
+                print(f"         ❌ Voice error: {e}")
+                scene["audio_path"] = None
+                scene["duration"] = 5.0
+                scene["word_timings"] = []
+
+    # Run async voice generation
+    asyncio.run(_gen_all())
+
+    total_duration = sum(s.get("duration", 0) for s in scenes)
     print(f"   ✅ All voices generated! Total duration: {total_duration:.1f}s")
 
-    return results
+    return scenes
 
 
 if __name__ == "__main__":
     # Quick test
     test_scenes = [
-        {"text": "Did you know that honey never spoils? Archaeologists have found 3000 year old honey in Egyptian tombs.", "image_query": "honey jar"},
-        {"text": "Octopuses have three hearts and blue blood.", "image_query": "octopus underwater"},
+        {"text": "Kya aapko pata hai ki Bhagwan Krishna ne Govardhan Parvat ko apni ek ungli par utha liya tha?"},
     ]
-    results = generate_all_voices(test_scenes, "test001", "english")
-    for r in results:
-        print(f"Scene {r['index']}: {r['duration']:.1f}s -> {r['audio_path']}")
+    result = generate_all_voices(test_scenes, "test", "hindi", "radha_krishna")
+    print(f"Duration: {result[0].get('duration', 0):.1f}s")

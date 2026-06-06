@@ -23,7 +23,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import (
-    GEMINI_API_KEY, PEXELS_API_KEY, NICHES,
+    GEMINI_API_KEY, NICHES,
     DEFAULT_LANGUAGE, DEFAULT_NICHE,
     TEMP_DIR, OUTPUT_DIR, FONTS_DIR, MUSIC_DIR,
 )
@@ -67,9 +67,6 @@ def check_prerequisites():
     # Check API keys
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
         issues.append("❌ GEMINI_API_KEY not set in config.py")
-
-    if not PEXELS_API_KEY or PEXELS_API_KEY == "YOUR_PEXELS_API_KEY_HERE":
-        issues.append("⚠️  PEXELS_API_KEY not set — images won't download (set in config.py)")
 
     # Check FFmpeg
     try:
@@ -148,27 +145,23 @@ def create_single_video(
             scenes=scenes,
             job_id=job_id,
             language=language,
+            niche=niche,
         )
 
-        # ── Step 3: Fetch Background Images ──────────────────────
-        has_pexels = PEXELS_API_KEY and PEXELS_API_KEY != "YOUR_PEXELS_API_KEY_HERE"
-        if has_pexels:
-            scenes = fetch_all_media(
-                scenes=scenes,
-                job_id=job_id,
-                media_type="image",
-            )
-        else:
-            print("\n⚠️  Pexels API key not set — using color backgrounds")
-            for scene in scenes:
-                scene["media_path"] = None
-                scene["media_type"] = None
+        # ── Step 3: Generate/Fetch Images ─────────────────────────
+        scenes = fetch_all_media(
+            scenes=scenes,
+            job_id=job_id,
+            niche=niche,
+            media_type="image",
+        )
 
-        # ── Step 4: Enhance Images ───────────────────────────────
+        # ── Step 4: Enhance Images (only for Pexels, AI images already HD) ──
+        has_pexels_images = any(s.get("media_type") == "pexels" for s in scenes)
         scenes = enhance_all_images(
             scenes=scenes,
             job_id=job_id,
-            enable_enhancement=enhance_images and has_pexels,
+            enable_enhancement=enhance_images and has_pexels_images,
         )
 
         # ── Step 5: Generate Captions ────────────────────────────

@@ -1,11 +1,13 @@
 """
-ShortForge AI — Script Writer (Gemini API)
-============================================
-Generates viral short-form video scripts using Google Gemini.
+ShortForge AI — Script Writer v2 (Gemini API)
+================================================
+Generates viral short-form video scripts with image_prompt support.
+Dual-key fallback: paid -> free key.
 """
 
 import json
 import re
+import time
 from google import genai
 
 from config import GEMINI_API_KEY, GEMINI_API_KEY_FREE, SCENES_PER_VIDEO
@@ -23,17 +25,14 @@ def _call_gemini(prompt: str, api_key: str) -> str:
 
 
 def generate_script(
-    niche: str = "amazing_facts",
-    language: str = "english",
+    niche: str = "radha_krishna",
+    language: str = "hindi",
     topic: str | None = None,
     num_scenes: int = SCENES_PER_VIDEO,
 ) -> dict:
     """
     Generate a video script using Gemini API.
     Tries paid key first, falls back to free key if credits exhausted.
-
-    Returns dict with keys: title, scenes, description, hashtags
-    Each scene has: text, image_query
     """
     print(f"\n🤖 Generating script...")
     print(f"   Niche: {niche} | Language: {language}")
@@ -65,10 +64,8 @@ def generate_script(
     if raw_text is None:
         raise ValueError("Both Gemini API keys failed! Please check your keys or add credits.")
 
-
     # Parse JSON from response (handle markdown code blocks)
     json_text = raw_text
-    # Remove ```json ... ``` wrapper if present
     json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', raw_text, re.DOTALL)
     if json_match:
         json_text = json_match.group(1).strip()
@@ -77,7 +74,6 @@ def generate_script(
         script = json.loads(json_text)
     except json.JSONDecodeError as e:
         print(f"   ⚠️  JSON parse error, attempting repair...")
-        # Try to find JSON object in the text
         brace_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
         if brace_match:
             try:
@@ -98,13 +94,17 @@ def generate_script(
     for i, scene in enumerate(script["scenes"]):
         if "text" not in scene:
             raise ValueError(f"Scene {i} missing 'text'")
+        # Ensure image_prompt exists (use image_query as fallback)
+        if "image_prompt" not in scene:
+            scene["image_prompt"] = scene.get("image_query", "beautiful divine background, golden light")
         if "image_query" not in scene:
-            scene["image_query"] = "abstract background"
+            # Create a simpler query for Pexels fallback
+            scene["image_query"] = scene["image_prompt"].split(",")[0][:50]
 
     # Add defaults for missing top-level fields
-    script.setdefault("title", "Amazing Facts You Need to Know")
-    script.setdefault("description", "Watch till the end! 🤯")
-    script.setdefault("hashtags", "#facts #shorts #viral")
+    script.setdefault("title", "Amazing Story")
+    script.setdefault("description", "Watch till the end!")
+    script.setdefault("hashtags", "#shorts #viral")
 
     print(f"   ✅ Script generated: \"{script['title']}\"")
     print(f"   📝 {len(script['scenes'])} scenes")
@@ -116,6 +116,5 @@ def generate_script(
 
 
 if __name__ == "__main__":
-    # Quick test
-    script = generate_script(niche="amazing_facts", language="english")
+    script = generate_script(niche="radha_krishna", language="hindi")
     print("\n" + json.dumps(script, indent=2, ensure_ascii=False))

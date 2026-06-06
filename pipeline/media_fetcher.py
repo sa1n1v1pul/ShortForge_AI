@@ -1,205 +1,196 @@
 """
-ShortForge AI — Media Fetcher (Pexels API)
-=============================================
-Downloads high-quality stock images and videos from Pexels (FREE API).
+ShortForge AI — Media Fetcher v2
+===================================
+Generates AI cartoon images using Gemini, with Pexels stock fallback.
 """
 
-import os
 import time
 import requests
 from pathlib import Path
 
-from config import PEXELS_API_KEY, TEMP_DIR, VIDEO_WIDTH, VIDEO_HEIGHT
+from config import (
+    GEMINI_API_KEY, GEMINI_API_KEY_FREE,
+    PEXELS_API_KEY, TEMP_DIR,
+    GEMINI_IMAGE_MODEL, IMAGE_STYLE_PREFIX,
+    IMAGE_GEN_DELAY, NICHES,
+    VIDEO_WIDTH, VIDEO_HEIGHT,
+)
 
 
-PEXELS_PHOTO_URL = "https://api.pexels.com/v1/search"
-PEXELS_VIDEO_URL = "https://api.pexels.com/videos/search"
-
-HEADERS = {
-    "Authorization": PEXELS_API_KEY,
-}
-
-
-def fetch_image(query: str, scene_index: int, job_id: str) -> str | None:
+def generate_ai_image(prompt: str, output_path: str, niche: str = "") -> bool:
     """
-    Fetch a high-quality portrait image from Pexels.
-
-    Returns the local file path of the downloaded image, or None on failure.
+    Generate a cartoon image using Gemini's image generation model.
+    Returns True if image was saved successfully.
     """
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    from google import genai
+    from google.genai import types
 
-    print(f"   🖼️  Scene {scene_index + 1}: Searching \"{query}\"...")
+    # Add niche-specific style to prompt
+    niche_style = NICHES.get(niche, {}).get("image_style", "")
+    full_prompt = f"{IMAGE_STYLE_PREFIX}, {niche_style}, {prompt}"
+
+    # Try both keys
+    for key_name, key_value in [("paid", GEMINI_API_KEY), ("free", GEMINI_API_KEY_FREE)]:
+        try:
+            client = genai.Client(api_key=key_value)
+            response = client.models.generate_content(
+                model=GEMINI_IMAGE_MODEL,
+                contents=f"Generate this image: {full_prompt}",
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                ),
+            )
+
+            # Extract image data from response
+            for part in response.candidates[0].content.parts:
+                if part.inline_data and part.inline_data.data:
+                    img_data = part.inline_data.data
+                    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                    with open(output_path, "wb") as f:
+                        f.write(img_data)
+                    return True
+
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                continue
+            elif "400" in err_str and "API_KEY_INVALID" in err_str:
+                continue
+            elif "400" in err_str and "safety" in err_str.lower():
+                # Content safety filter — modify prompt and retry
+                try:
+                    safer_prompt = f"Beautiful artistic illustration: {prompt}, family friendly, cartoon style"
+                    response = client.models.generate_content(
+                        model=GEMINI_IMAGE_MODEL,
+                        contents=f"Generate this artistic illustration: {safer_prompt}",
+                        config=types.GenerateContentConfig(
+                            response_modalities=["IMAGE"],
+                        ),
+                    )
+                    for part in response.candidates[0].content.parts:
+                        if part.inline_data and part.inline_data.data:
+                            with open(output_path, "wb") as f:
+                                f.write(part.inline_data.data)
+                            return True
+                except Exception:
+                    continue
+            else:
+                continue
+
+    return False
+
+
+def fetch_pexels_image(query: str, output_path: str) -> bool:
+    """Fallback: download a stock image from Pexels API."""
+    if not PEXELS_API_KEY or PEXELS_API_KEY == "YOUR_PEXELS_API_KEY_HERE":
+        return False
+
+    headers = {"Authorization": PEXELS_API_KEY}
 
     try:
-        params = {
-            "query": query,
-            "orientation": "portrait",  # Vertical for shorts
-            "size": "large",
-            "per_page": 5,
-            "page": 1,
-        }
-
-        resp = requests.get(PEXELS_PHOTO_URL, headers=HEADERS, params=params, timeout=15)
+        # Search for images
+        resp = requests.get(
+            "https://api.pexels.com/v1/search",
+            headers=headers,
+            params={
+                "query": query,
+                "per_page": 5,
+                "orientation": "portrait",
+                "size": "medium",
+            },
+            timeout=15,
+        )
         resp.raise_for_status()
         data = resp.json()
 
-        photos = data.get("photos", [])
-        if not photos:
-            print(f"         ⚠️  No results for \"{query}\", trying fallback...")
-            # Try simpler query (first 2 words)
-            simple_query = " ".join(query.split()[:2])
-            params["query"] = simple_query
-            resp = requests.get(PEXELS_PHOTO_URL, headers=HEADERS, params=params, timeout=15)
-            resp.raise_for_status()
-            data = resp.json()
-            photos = data.get("photos", [])
+        if not data.get("photos"):
+            return False
 
-        if not photos:
-            print(f"         ❌ No images found for \"{query}\"")
-            return None
+        # Pick first suitable photo
+        photo = data["photos"][0]
+        img_url = photo["src"].get("large2x") or photo["src"].get("large") or photo["src"]["original"]
 
-        # Pick the best photo (first result is usually most relevant)
-        # Use scene_index to vary results slightly
-        photo = photos[scene_index % len(photos)]
-
-        # Get the "large2x" or "large" size for best quality
-        img_url = photo.get("src", {}).get("large2x") or photo.get("src", {}).get("large") or photo.get("src", {}).get("original")
-
-        if not img_url:
-            print(f"         ❌ No image URL found")
-            return None
-
-        # Download the image
-        output_path = str(TEMP_DIR / f"{job_id}_img_{scene_index:03d}.jpg")
+        # Download
         img_resp = requests.get(img_url, timeout=30)
         img_resp.raise_for_status()
 
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "wb") as f:
             f.write(img_resp.content)
 
-        size_kb = len(img_resp.content) // 1024
         photographer = photo.get("photographer", "Unknown")
-        print(f"         ✅ Downloaded ({size_kb} KB) by {photographer}")
+        size_kb = len(img_resp.content) / 1024
+        print(f"         Pexels fallback: {size_kb:.0f} KB by {photographer}")
+        return True
 
-        return output_path
-
-    except requests.exceptions.RequestException as e:
-        print(f"         ❌ Pexels API error: {e}")
-        return None
-
-
-def fetch_video(query: str, scene_index: int, job_id: str, min_duration: float = 5) -> str | None:
-    """
-    Fetch a stock video from Pexels.
-
-    Returns the local file path of the downloaded video, or None on failure.
-    """
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-    print(f"   🎥 Scene {scene_index + 1}: Searching video \"{query}\"...")
-
-    try:
-        params = {
-            "query": query,
-            "orientation": "portrait",
-            "size": "medium",
-            "per_page": 5,
-            "page": 1,
-        }
-
-        resp = requests.get(PEXELS_VIDEO_URL, headers=HEADERS, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-
-        videos = data.get("videos", [])
-        if not videos:
-            print(f"         ⚠️  No video results for \"{query}\"")
-            return None
-
-        # Pick a video
-        video = videos[scene_index % len(videos)]
-
-        # Find the best quality video file (prefer HD, portrait)
-        video_files = video.get("video_files", [])
-        best_file = None
-        for vf in sorted(video_files, key=lambda x: x.get("height", 0), reverse=True):
-            if vf.get("height", 0) >= 720:
-                best_file = vf
-                break
-        if not best_file and video_files:
-            best_file = video_files[0]
-
-        if not best_file:
-            print(f"         ❌ No video file found")
-            return None
-
-        video_url = best_file.get("link")
-        if not video_url:
-            return None
-
-        # Download
-        output_path = str(TEMP_DIR / f"{job_id}_vid_{scene_index:03d}.mp4")
-        vid_resp = requests.get(video_url, timeout=60, stream=True)
-        vid_resp.raise_for_status()
-
-        with open(output_path, "wb") as f:
-            for chunk in vid_resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        size_kb = os.path.getsize(output_path) // 1024
-        print(f"         ✅ Downloaded video ({size_kb} KB)")
-
-        return output_path
-
-    except requests.exceptions.RequestException as e:
-        print(f"         ❌ Pexels video API error: {e}")
-        return None
+    except Exception as e:
+        print(f"         Pexels error: {e}")
+        return False
 
 
 def fetch_all_media(
     scenes: list[dict],
     job_id: str,
+    niche: str = "",
     media_type: str = "image",
 ) -> list[dict]:
     """
-    Fetch media for all scenes.
-
-    Args:
-        scenes: List of scene dicts (must have 'image_query')
-        job_id: Unique job identifier
-        media_type: "image" or "video"
-
-    Returns list of scene dicts with 'media_path' added.
+    Fetch/generate images for all scenes.
+    Priority: AI generation > Pexels stock > Color background
     """
-    print(f"\n🖼️  Fetching {media_type}s for {len(scenes)} scenes...")
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+    print(f"\n{'🎨' if niche in ['radha_krishna','shiv_parvati','hanuman','mythology','moral_stories'] else '🖼️'}  Generating images for {len(scenes)} scenes...")
 
     for i, scene in enumerate(scenes):
-        query = scene.get("image_query", "abstract background")
+        # Use image_prompt from script (AI-optimized) or fall back to image_query
+        ai_prompt = scene.get("image_prompt", scene.get("image_query", "beautiful background"))
+        pexels_query = scene.get("image_query", scene.get("image_prompt", "background").split(",")[0])
 
-        if media_type == "video":
-            path = fetch_video(query, i, job_id)
-        else:
-            path = fetch_image(query, i, job_id)
+        output_path = str(TEMP_DIR / f"{job_id}_media_{i:03d}.png")
 
-        scene["media_path"] = path
-        scene["media_type"] = media_type if path else None
+        print(f"   🎨 Scene {i + 1}: Generating cartoon image...")
+        print(f"         \"{ai_prompt[:60]}...\"")
 
-        # Small delay to respect rate limits
-        if i < len(scenes) - 1:
-            time.sleep(0.3)
+        # Method 1: AI image generation
+        success = generate_ai_image(ai_prompt, output_path, niche)
 
-    success = sum(1 for s in scenes if s.get("media_path"))
-    print(f"   ✅ Fetched {success}/{len(scenes)} {media_type}s")
+        if success:
+            print(f"         ✅ AI image generated!")
+            scene["media_path"] = output_path
+            scene["media_type"] = "ai_generated"
+
+            # Rate limit delay between generations
+            if i < len(scenes) - 1:
+                time.sleep(IMAGE_GEN_DELAY)
+            continue
+
+        # Method 2: Pexels stock image fallback
+        print(f"         ⚠️  AI generation unavailable, trying Pexels...")
+        pexels_path = str(TEMP_DIR / f"{job_id}_media_{i:03d}.jpg")
+        success = fetch_pexels_image(pexels_query, pexels_path)
+
+        if success:
+            print(f"         ✅ Pexels image downloaded")
+            scene["media_path"] = pexels_path
+            scene["media_type"] = "pexels"
+            continue
+
+        # Method 3: No image available
+        print(f"         ⚠️  No image available, will use color background")
+        scene["media_path"] = None
+        scene["media_type"] = None
+
+    ai_count = sum(1 for s in scenes if s.get("media_type") == "ai_generated")
+    pexels_count = sum(1 for s in scenes if s.get("media_type") == "pexels")
+    print(f"   ✅ Images ready: {ai_count} AI + {pexels_count} Pexels + {len(scenes) - ai_count - pexels_count} color bg")
 
     return scenes
 
 
 if __name__ == "__main__":
     # Quick test
-    test_scenes = [
-        {"image_query": "honey jar golden"},
-        {"image_query": "octopus underwater"},
-    ]
-    results = fetch_all_media(test_scenes, "test001", "image")
-    for r in results:
-        print(f"  {r['image_query']} -> {r.get('media_path', 'FAILED')}")
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    test_prompt = "Lord Krishna playing flute by the river Yamuna with peacocks, golden divine light"
+    result = generate_ai_image(test_prompt, str(TEMP_DIR / "test_ai.png"), "radha_krishna")
+    print(f"AI generation: {'SUCCESS' if result else 'FAILED (using Pexels fallback)'}")
