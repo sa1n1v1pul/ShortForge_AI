@@ -42,24 +42,34 @@ def generate_script(
     # Build prompt
     prompt = get_script_prompt(niche, language, num_scenes, topic)
 
-    # Try paid key first, fallback to free key
+    # Try paid key first, fallback to free key (with retry for 503 errors)
     raw_text = None
     for key_name, key_value in [("paid", GEMINI_API_KEY), ("free", GEMINI_API_KEY_FREE)]:
-        try:
-            print(f"   Trying {key_name} key...")
-            raw_text = _call_gemini(prompt, key_value)
-            print(f"   ✅ {key_name} key worked!")
+        for attempt in range(3):  # Retry up to 3 times per key
+            try:
+                if attempt > 0:
+                    print(f"   Retry {attempt}/2 for {key_name} key (waiting 30s)...")
+                    time.sleep(30)
+                else:
+                    print(f"   Trying {key_name} key...")
+                raw_text = _call_gemini(prompt, key_value)
+                print(f"   ✅ {key_name} key worked!")
+                break
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "exhausted" in err_str.lower():
+                    print(f"   ⚠️  {key_name} key credits exhausted, trying next...")
+                    break  # Don't retry, move to next key
+                elif "503" in err_str or "UNAVAILABLE" in err_str:
+                    print(f"   ⚠️  Server busy (503), will retry...")
+                    continue  # Retry same key
+                elif "400" in err_str and "API_KEY_INVALID" in err_str:
+                    print(f"   ⚠️  {key_name} key invalid, trying next...")
+                    break  # Don't retry, move to next key
+                else:
+                    raise
+        if raw_text:
             break
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "exhausted" in err_str.lower():
-                print(f"   ⚠️  {key_name} key credits exhausted, trying next...")
-                continue
-            elif "400" in err_str and "API_KEY_INVALID" in err_str:
-                print(f"   ⚠️  {key_name} key invalid, trying next...")
-                continue
-            else:
-                raise
 
     if raw_text is None:
         raise ValueError("Both Gemini API keys failed! Please check your keys or add credits.")

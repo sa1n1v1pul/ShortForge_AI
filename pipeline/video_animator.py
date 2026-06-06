@@ -81,13 +81,21 @@ def animate_image_with_veo(
             try:
                 # If we have a source image, use image-to-video
                 if image_path and Path(image_path).exists():
-                    # Upload image first
-                    img_file = client.files.upload(file=image_path)
+                    # Read image as bytes and create Image object
+                    with open(image_path, "rb") as f:
+                        img_bytes = f.read()
+
+                    # Detect mime type
+                    ext = Path(image_path).suffix.lower()
+                    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                            "webp": "image/webp"}.get(ext.lstrip("."), "image/png")
+
+                    img_obj = types.Image(image_bytes=img_bytes, mime_type=mime)
 
                     op = client.models.generate_videos(
                         model=model,
                         prompt=animation_prompt,
-                        image=img_file,
+                        image=img_obj,
                         config={
                             "number_of_videos": 1,
                             "duration_seconds": duration,
