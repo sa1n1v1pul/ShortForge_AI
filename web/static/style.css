@@ -267,6 +267,11 @@ body::before {
     color: var(--text-muted);
 }
 
+select.text-input option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
 .textarea {
     resize: vertical;
     min-height: 100px;
