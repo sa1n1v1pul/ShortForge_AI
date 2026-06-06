@@ -157,7 +157,9 @@ def api_videos():
     if OUTPUT_DIR.exists():
         for date_dir in sorted(OUTPUT_DIR.iterdir(), reverse=True):
             if date_dir.is_dir():
-                for f in sorted(date_dir.glob("*.mp4"), reverse=True):
+                # Sort by modification time (newest first) instead of alphabetically
+                files = sorted(date_dir.glob("*.mp4"), key=lambda x: x.stat().st_mtime, reverse=True)
+                for f in files:
                     videos.append({
                         "name": f.name,
                         "path": str(f),
