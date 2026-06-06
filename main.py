@@ -194,7 +194,7 @@ def create_single_video(
             scenes=scenes,
             captions_path=captions_path,
             job_id=job_id,
-            title=script.get("title", "video"),
+            title=script.get("filename") or script.get("title", "video"),
             enable_music=True,
             enable_captions=True,
         )

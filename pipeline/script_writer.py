@@ -67,6 +67,7 @@ RULES:
 Return ONLY valid JSON:
 {{
     "title": "Catchy title with emoji",
+    "filename": "short_descriptive_name_in_hinglish",
     "description": "2-3 line description",
     "hashtags": "relevant hashtags",
     "scenes": [

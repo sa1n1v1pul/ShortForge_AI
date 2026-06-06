@@ -10,6 +10,7 @@ import json
 import threading
 import uuid
 import time
+import urllib.parse
 from pathlib import Path
 from datetime import datetime
 
@@ -162,7 +163,7 @@ def api_videos():
                         "path": str(f),
                         "date": date_dir.name,
                         "size_mb": round(f.stat().st_size / (1024 * 1024), 1),
-                        "url": f"/video/{date_dir.name}/{f.name}",
+                        "url": f"/video/{date_dir.name}/{urllib.parse.quote(f.name)}",
                     })
     return jsonify(videos[:20])  # Last 20 videos
 

@@ -120,6 +120,7 @@ IMAGE PROMPT RULES:
 Return ONLY valid JSON (no markdown, no explanation):
 {{
     "title": "Catchy title with emoji (in Devanagari Hindi)",
+    "filename": "short_descriptive_name_in_hinglish (e.g. bal_krishna_makhan_chori)",
     "description": "2-3 line engaging description (in Devanagari Hindi)",
     "hashtags": "relevant hashtags space-separated",
     "scenes": [
@@ -160,6 +161,7 @@ IMAGE PROMPT RULES:
 Return ONLY valid JSON:
 {{
     "title": "Catchy viral title with emoji",
+    "filename": "short_descriptive_name_in_hinglish",
     "description": "2-3 line description",
     "hashtags": "relevant hashtags",
     "scenes": [

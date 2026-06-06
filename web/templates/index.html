@@ -362,17 +362,21 @@
             document.getElementById('progressCard').style.display = 'none';
             document.getElementById('resultCard').style.display = 'block';
 
-            if (job.filename) {
-                const videoUrl = `/video/${job.filename.split('/').pop() ? new Date().toISOString().split('T')[0] : ''}/${job.filename}`;
-                // Try to find the video URL from the API
-                fetch('/api/videos').then(r => r.json()).then(videos => {
-                    if (videos.length > 0) {
-                        const vid = videos[0];
-                        document.getElementById('resultVideo').src = vid.url;
-                        document.getElementById('resultFilename').textContent = `${vid.name} (${vid.size_mb} MB)`;
-                    }
-                });
-            }
+            // Always fetch latest video list and auto-play the newest one
+            fetch('/api/videos').then(r => r.json()).then(videos => {
+                if (videos.length > 0) {
+                    const vid = videos[0]; // Latest video
+                    const video = document.getElementById('resultVideo');
+                    video.src = vid.url;
+                    video.load();
+                    video.play().catch(() => {}); // Auto-play (may be blocked by browser)
+                    document.getElementById('resultFilename').textContent = `${decodeURIComponent(vid.name)} (${vid.size_mb} MB)`;
+                    // Scroll to result
+                    window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior: 'smooth' });
+                }
+                // Refresh video list too
+                loadVideos();
+            });
         }
 
         // ═══════════════════════════════════════════════════════
@@ -414,17 +418,21 @@
                     return;
                 }
 
-                list.innerHTML = videos.map(v => `
+                list.innerHTML = videos.map(v => {
+                    // Decode the filename for display but keep URL encoded for playback
+                    const displayName = decodeURIComponent(v.name);
+                    const shortName = displayName.length > 40 ? displayName.substring(0, 38) + '...' : displayName;
+                    return `
                     <div class="video-item">
                         <div class="video-item-info">
-                            <span class="video-name">${v.name.substring(0, 40)}${v.name.length > 40 ? '...' : ''}</span>
+                            <span class="video-name">${shortName}</span>
                             <span class="video-meta">${v.date} • ${v.size_mb} MB</span>
                         </div>
                         <div class="video-actions">
                             <button class="btn-sm" onclick="playVideo('${v.url}')">▶️ Play</button>
                         </div>
-                    </div>
-                `).join('');
+                    </div>`;
+                }).join('');
             } catch (err) {
                 document.getElementById('videoList').innerHTML = '<p class="empty-text">Could not load videos</p>';
             }
