@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShortForge AI — Video Generator</title>
+    <title>ShortForge AI — Liquid Glass Generator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+        // Inline theme initialization to prevent flash
+        const savedTheme = localStorage.getItem('sfTheme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
 </head>
 <body>
     <!-- Header -->
@@ -16,199 +21,212 @@
                 <span class="logo-icon">🎬</span>
                 <div>
                     <h1>ShortForge AI</h1>
-                    <p class="tagline">AI-Powered Dharmic Short Videos</p>
+                    <p class="tagline">Liquid Glass Edition</p>
                 </div>
             </div>
-            <div class="header-badge">
-                <span class="status-dot"></span>
-                <span>Engine Ready</span>
+            <div class="header-actions">
+                <div class="header-badge">
+                    <span class="status-dot"></span>
+                    <span>Engine Ready</span>
+                </div>
+                <button class="theme-toggle-btn" id="themeToggle" title="Toggle Light/Dark Mode">
+                    🌙
+                </button>
             </div>
         </div>
     </header>
 
     <main class="app-main">
-        <!-- Generator Card -->
-        <section class="card generator-card" id="generatorCard">
-            <div class="card-header">
-                <h2>✨ Create New Video</h2>
-            </div>
-
-            <div class="card-body">
-                <!-- Character/Niche Selector -->
-                <div class="form-group">
-                    <label>🎭 Character / Niche</label>
-                    <div class="niche-grid" id="nicheGrid">
-                        {% for key, info in niches.items() %}
-                        <button class="niche-btn {% if loop.first %}active{% endif %}" data-niche="{{ key }}">
-                            <span class="niche-emoji">{{ info.emoji }}</span>
-                            <span class="niche-name">{{ info.name }}</span>
-                        </button>
-                        {% endfor %}
-                    </div>
-                    <div class="custom-niche-container" style="margin-top: 15px;">
-                        <input type="text" id="customNicheInput" 
-                               placeholder="Or type custom character (e.g., Aaloo and Gobhi)..." 
-                               class="text-input" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);">
-                    </div>
+        <!-- LEFT COLUMN: SETTINGS -->
+        <div class="left-col">
+            <section class="card generator-card" id="generatorCard">
+                <div class="card-header">
+                    <h2>✨ Create New Video</h2>
                 </div>
 
-                <!-- Script / Prompt -->
-                <div class="form-group">
-                    <div class="label-row">
-                        <label>📝 Story Script</label>
-                        <div class="toggle-group">
-                            <span class="toggle-label-alt">Manual</span>
-                            <button class="toggle-btn active" id="modeToggle" data-mode="auto">
-                                <span class="toggle-slider"></span>
+                <div class="card-body">
+                    <!-- Character/Niche Selector -->
+                    <div class="form-group">
+                        <label>🎭 Character / Niche</label>
+                        <div class="niche-grid" id="nicheGrid">
+                            {% for key, info in niches.items() %}
+                            <button class="niche-btn {% if loop.first %}active{% endif %}" data-niche="{{ key }}">
+                                <span class="niche-emoji">{{ info.emoji }}</span>
+                                <span class="niche-name">{{ info.name }}</span>
                             </button>
-                            <span class="toggle-label" id="modeLabel">Auto AI</span>
+                            {% endfor %}
+                        </div>
+                        <div class="custom-niche-container" style="margin-top: 16px;">
+                            <input type="text" id="customNicheInput" 
+                                   placeholder="Or type custom character (e.g., Aaloo and Gobhi)..." 
+                                   class="text-input">
                         </div>
                     </div>
-                    <div>
-                        <textarea id="promptInput" rows="4" 
-                                  placeholder="AI will generate the script automatically based on the selected character."
-                                  class="text-input textarea" disabled></textarea>
-                        <p class="help-text" id="promptHelp">Auto mode is ON. Just click Generate!</p>
-                    </div>
-                </div>
 
-                <!-- Language & Voice Selector -->
-                <div class="form-group">
-                    <label>🗣️ Language & Voice</label>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;" id="languageGrid">
-                        <button class="niche-btn active" data-lang="hindi" style="flex: 1; padding: 10px;">Hindi</button>
-                        <button class="niche-btn" data-lang="english" style="flex: 1; padding: 10px;">English</button>
-                    </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <select id="voiceSelect" class="text-input" style="flex: 1; cursor: pointer;">
-                            <!-- Options injected by JS -->
-                        </select>
-                        <button id="playVoiceBtn" type="button" class="play-sample-btn">
-                            <span class="btn-icon">▶️</span> Play Sample
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Duration Selector -->
-                <div class="form-group">
-                    <label>⏱️ Video Duration</label>
-                    <div class="duration-grid" id="durationGrid">
-                        <button class="duration-btn" data-duration="15">15s<br><small>2-3 scenes</small></button>
-                        <button class="duration-btn" data-duration="30">30s<br><small>4-5 scenes</small></button>
-                        <button class="duration-btn active" data-duration="45">45s<br><small>5-6 scenes</small></button>
-                        <button class="duration-btn" data-duration="60">60s<br><small>7-8 scenes</small></button>
-                        <button class="duration-btn" data-duration="90">90s<br><small>9-10 scenes</small></button>
-                    </div>
-                </div>
-
-                <!-- Veo Animation Toggle -->
-                <div class="form-group">
-                    <div class="label-row">
-                        <label>🎥 AI Animation (Veo)</label>
-                        <div class="toggle-group">
-                            <span class="toggle-label">OFF (Free)</span>
-                            <button class="toggle-btn" id="animateToggle" data-mode="off">
-                                <span class="toggle-slider"></span>
-                            </button>
-                            <span class="toggle-label-alt">ON (₹50/scene)</span>
+                    <!-- Script / Prompt -->
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label>📝 Story Script</label>
+                            <div class="toggle-group">
+                                <span class="toggle-label-alt">Manual</span>
+                                <button class="toggle-btn active" id="modeToggle" data-mode="auto">
+                                    <span class="toggle-slider"></span>
+                                </button>
+                                <span class="toggle-label" id="modeLabel">Auto AI</span>
+                            </div>
+                        </div>
+                        <div>
+                            <textarea id="promptInput" rows="4" 
+                                      placeholder="AI will generate the script automatically based on the selected character."
+                                      class="text-input textarea" disabled></textarea>
+                            <p class="help-text" id="promptHelp">Auto mode is ON. Just click Generate!</p>
                         </div>
                     </div>
-                    <p class="help-text" id="animateHelp">
-                        <span class="cost-badge cost-free">💚 Ken Burns effect — FREE</span>
-                    </p>
-                </div>
 
-                <!-- Cost Estimate -->
-                <div class="cost-estimate" id="costEstimate">
-                    <div class="cost-row">
-                        <span>Estimated Cost:</span>
-                        <span class="cost-value" id="costValue">~₹5-6</span>
+                    <!-- Language & Voice Selector -->
+                    <div class="form-group">
+                        <label>🗣️ Language & Voice</label>
+                        <div style="display: flex; gap: 12px; margin-bottom: 12px;" id="languageGrid">
+                            <button class="niche-btn active" data-lang="hindi" style="flex: 1;">Hindi</button>
+                            <button class="niche-btn" data-lang="english" style="flex: 1;">English</button>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <select id="voiceSelect" class="text-input" style="flex: 1;">
+                                <!-- Options injected by JS -->
+                            </select>
+                            <button id="playVoiceBtn" type="button" class="play-sample-btn">
+                                <span class="btn-icon">▶️</span> Play Sample
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Generate Button -->
-                <button class="generate-btn" id="generateBtn" onclick="startGeneration()">
-                    <span class="btn-icon">🎬</span>
-                    <span class="btn-text">Generate Video</span>
-                </button>
-            </div>
-        </section>
+                    <!-- Duration Selector -->
+                    <div class="form-group">
+                        <label>⏱️ Video Duration</label>
+                        <div class="duration-grid" id="durationGrid">
+                            <button class="duration-btn" data-duration="15">15s<br><small>2-3 scenes</small></button>
+                            <button class="duration-btn" data-duration="30">30s<br><small>4-5 scenes</small></button>
+                            <button class="duration-btn active" data-duration="45">45s<br><small>5-6 scenes</small></button>
+                            <button class="duration-btn" data-duration="60">60s<br><small>7-8 scenes</small></button>
+                            <button class="duration-btn" data-duration="90">90s<br><small>9-10 scenes</small></button>
+                        </div>
+                    </div>
 
-        <!-- Progress Card (hidden initially) -->
-        <section class="card progress-card" id="progressCard" style="display: none;">
-            <div class="card-header">
-                <h2>⚡ Generating Video...</h2>
-                <span class="job-id" id="jobIdLabel"></span>
-            </div>
-            <div class="card-body">
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar" style="width: 0%">
-                        <span class="progress-text" id="progressText">0%</span>
+                    <!-- Animation Selector -->
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label>✨ AI Animation (Veo)</label>
+                            <div class="toggle-group">
+                                <span class="toggle-label-alt">OFF (Static)</span>
+                                <button class="toggle-btn" id="animateToggle" data-mode="static">
+                                    <span class="toggle-slider"></span>
+                                </button>
+                                <span class="toggle-label-alt">ON (~₹50/scene)</span>
+                            </div>
+                        </div>
+                        <p class="help-text" id="animateHelp">
+                            <span class="cost-badge cost-free">💚 Ken Burns effect — FREE</span>
+                        </p>
                     </div>
                 </div>
-                <div class="progress-status">
-                    <div class="status-icon" id="statusIcon">⏳</div>
-                    <p class="status-message" id="statusMessage">Starting pipeline...</p>
-                </div>
-                <div class="progress-steps" id="progressSteps">
-                    <div class="step" data-step="script">
-                        <span class="step-icon">📝</span>
-                        <span class="step-label">Script</span>
-                    </div>
-                    <div class="step" data-step="voice">
-                        <span class="step-icon">🗣️</span>
-                        <span class="step-label">Voice</span>
-                    </div>
-                    <div class="step" data-step="images">
-                        <span class="step-icon">🎨</span>
-                        <span class="step-label">Images</span>
-                    </div>
-                    <div class="step" data-step="captions">
-                        <span class="step-icon">📝</span>
-                        <span class="step-label">Captions</span>
-                    </div>
-                    <div class="step" data-step="assembly">
-                        <span class="step-icon">🎬</span>
-                        <span class="step-label">Assemble</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
-        <!-- Result Card (hidden initially) -->
-        <section class="card result-card" id="resultCard" style="display: none;">
-            <div class="card-header">
-                <h2>🎉 Video Ready!</h2>
-            </div>
-            <div class="card-body">
-                <video id="resultVideo" controls class="result-video"></video>
-                <div class="result-info">
-                    <p id="resultFilename"></p>
-                    <button class="btn-secondary" onclick="openVideoFolder()">📁 Open Folder</button>
-                    <button class="generate-btn small" onclick="resetForm()">✨ Create Another</button>
+        <!-- RIGHT COLUMN: SUMMARY, PROGRESS, RECENT -->
+        <div class="right-col">
+            <!-- Summary Card -->
+            <section class="card summary-card" id="summaryCard" style="margin-bottom: 32px;">
+                <div class="card-body">
+                    <div class="cost-estimate" id="costEstimate">
+                        <div class="cost-row">
+                            <span>Estimated Cost:</span>
+                            <span class="cost-value" id="costValue">~₹5-6</span>
+                        </div>
+                    </div>
+                    <!-- Generate Button -->
+                    <button class="generate-btn" id="generateBtn" onclick="startGeneration()">
+                        <span class="btn-icon">🎬</span>
+                        <span class="btn-text">Generate Video</span>
+                    </button>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Recent Videos -->
-        <section class="card videos-card">
-            <div class="card-header">
-                <h2>📂 Recent Videos</h2>
-                <button class="btn-icon-small" onclick="loadVideos()">🔄</button>
-            </div>
-            <div class="card-body">
-                <div class="video-list" id="videoList">
-                    <p class="empty-text">Loading...</p>
+            <!-- Progress Card (hidden initially) -->
+            <section class="card progress-card" id="progressCard" style="display: none; margin-bottom: 32px;">
+                <div class="card-header">
+                    <h2>⚡ Generating Video...</h2>
+                    <span class="job-id" id="jobIdLabel" style="font-size:12px; color:var(--text-muted);"></span>
                 </div>
-            </div>
-        </section>
+                <div class="card-body">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progressBar" style="width: 0%">
+                            <span class="progress-text" id="progressText">0%</span>
+                        </div>
+                    </div>
+                    <div class="progress-status" style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                        <div class="status-icon" id="statusIcon">⏳</div>
+                        <p class="status-message" id="statusMessage" style="font-weight:600;">Starting pipeline...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Result Card (hidden initially) -->
+            <section class="card result-card" id="resultCard" style="display: none; margin-bottom: 32px;">
+                <div class="card-header">
+                    <h2>🎉 Video Ready!</h2>
+                </div>
+                <div class="card-body">
+                    <video id="resultVideo" controls class="result-video" style="width:100%; border-radius:var(--radius-md); margin-bottom:16px; box-shadow:var(--glass-shadow);"></video>
+                    <div class="result-info" style="display:flex; flex-direction:column; gap:12px;">
+                        <p id="resultFilename" style="font-weight:600;"></p>
+                        <button class="btn-sm" onclick="openVideoFolder()">📁 Open Folder</button>
+                        <button class="generate-btn" style="padding: 12px; font-size:15px;" onclick="resetForm()">✨ Create Another</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Videos -->
+            <section class="card videos-card">
+                <div class="card-header" style="display:flex; justify-content:space-between;">
+                    <h2>📂 Recent Videos</h2>
+                    <button class="btn-sm" onclick="loadVideos()" style="padding: 6px 12px;">🔄</button>
+                </div>
+                <div class="card-body">
+                    <div class="video-list" id="videoList">
+                        <p class="empty-text">Loading...</p>
+                    </div>
+                </div>
+            </section>
+        </div>
     </main>
 
-    <footer class="app-footer">
-        <p>ShortForge AI v3 — Made with ❤️ for Dharmic Content Creators</p>
+    <footer class="app-footer" style="text-align:center; padding: 32px; color:var(--text-muted); font-size:13px; font-weight:500;">
+        <p>ShortForge AI v3 — Liquid Glass Edition</p>
     </footer>
 
     <script>
+        // ═══════════════════════════════════════════════════════
+        //  THEME TOGGLE
+        // ═══════════════════════════════════════════════════════
+        const themeToggle = document.getElementById('themeToggle');
+        
+        function updateThemeIcon() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            themeToggle.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('sfTheme', newTheme);
+            updateThemeIcon();
+        });
+        
+        // Initial icon update
+        updateThemeIcon();
+
         // ═══════════════════════════════════════════════════════
         //  STATE
         // ═══════════════════════════════════════════════════════
@@ -224,9 +242,9 @@
         // ═══════════════════════════════════════════════════════
         const customNicheInput = document.getElementById('customNicheInput');
         
-        document.querySelectorAll('.niche-btn').forEach(btn => {
+        document.querySelectorAll('.niche-btn[data-niche]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.niche-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.niche-btn[data-niche]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedNiche = btn.dataset.niche;
                 customNicheInput.value = ''; // Clear custom input when button clicked
@@ -235,12 +253,14 @@
 
         customNicheInput.addEventListener('input', () => {
             if (customNicheInput.value.trim() !== '') {
-                document.querySelectorAll('.niche-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.niche-btn[data-niche]').forEach(b => b.classList.remove('active'));
             } else {
-                // If cleared, default back to the first one (or keep empty)
-                if(!document.querySelector('.niche-btn.active')) {
-                    document.querySelector('.niche-btn').classList.add('active');
-                    selectedNiche = document.querySelector('.niche-btn').dataset.niche;
+                if(!document.querySelector('.niche-btn[data-niche].active')) {
+                    const firstBtn = document.querySelector('.niche-btn[data-niche]');
+                    if(firstBtn) {
+                        firstBtn.classList.add('active');
+                        selectedNiche = firstBtn.dataset.niche;
+                    }
                 }
             }
         });
@@ -388,7 +408,6 @@
                 duration: selectedDuration,
                 animate: isAnimateOn,
                 mode: isAutoMode ? 'auto' : 'manual',
-                topic: '', // Removed topic field, using only niche for auto
                 prompt: document.getElementById('promptInput')?.value || '',
                 voice_profile: voiceSelect.value,
             };
@@ -402,8 +421,11 @@
                 const data = await res.json();
                 currentJobId = data.job_id;
 
-                // Show progress card
-                document.getElementById('generatorCard').style.display = 'none';
+                // Disable generate controls
+                document.getElementById('generatorCard').style.opacity = '0.5';
+                document.getElementById('generatorCard').style.pointerEvents = 'none';
+                
+                document.getElementById('summaryCard').style.display = 'none';
                 document.getElementById('progressCard').style.display = 'block';
                 document.getElementById('resultCard').style.display = 'none';
                 document.getElementById('jobIdLabel').textContent = `Job: ${currentJobId}`;
@@ -415,6 +437,9 @@
                 alert('Error starting generation: ' + err.message);
                 btn.disabled = false;
                 btn.querySelector('.btn-text').textContent = 'Generate Video';
+                
+                document.getElementById('generatorCard').style.opacity = '1';
+                document.getElementById('generatorCard').style.pointerEvents = 'auto';
             }
         }
 
@@ -432,22 +457,6 @@
                 document.getElementById('progressBar').style.width = pct + '%';
                 document.getElementById('progressText').textContent = pct + '%';
                 document.getElementById('statusMessage').textContent = job.message || 'Processing...';
-
-                // Update step indicators
-                const steps = ['script', 'voice', 'images', 'captions', 'assembly'];
-                const stepProgress = {script: 15, voice: 30, images: 50, captions: 75, assembly: 85};
-                steps.forEach(step => {
-                    const el = document.querySelector(`.step[data-step="${step}"]`);
-                    if (el) {
-                        if (pct >= (stepProgress[step] || 0) + 10) {
-                            el.classList.add('done');
-                            el.classList.remove('active');
-                        } else if (pct >= (stepProgress[step] || 0)) {
-                            el.classList.add('active');
-                            el.classList.remove('done');
-                        }
-                    }
-                });
 
                 // Check if done
                 if (job.status === 'complete') {
@@ -493,7 +502,10 @@
         //  RESET FORM
         // ═══════════════════════════════════════════════════════
         function resetForm() {
-            document.getElementById('generatorCard').style.display = 'block';
+            document.getElementById('generatorCard').style.opacity = '1';
+            document.getElementById('generatorCard').style.pointerEvents = 'auto';
+            
+            document.getElementById('summaryCard').style.display = 'block';
             document.getElementById('progressCard').style.display = 'none';
             document.getElementById('resultCard').style.display = 'none';
             
@@ -504,9 +516,6 @@
             // Reset progress
             document.getElementById('progressBar').style.width = '0%';
             document.getElementById('progressText').textContent = '0%';
-            document.querySelectorAll('.step').forEach(s => {
-                s.classList.remove('done', 'active');
-            });
 
             currentJobId = null;
             if (pollInterval) clearInterval(pollInterval);
@@ -529,7 +538,6 @@
                 }
 
                 list.innerHTML = videos.map(v => {
-                    // Decode the filename for display but keep URL encoded for playback
                     const displayName = decodeURIComponent(v.name);
                     const shortName = displayName.length > 40 ? displayName.substring(0, 38) + '...' : displayName;
                     return `
