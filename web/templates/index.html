@@ -83,8 +83,8 @@
                         <select id="voiceSelect" class="text-input" style="flex: 1; cursor: pointer;">
                             <!-- Options injected by JS -->
                         </select>
-                        <button id="playVoiceBtn" type="button" class="btn" style="padding: 10px 15px; width: auto; background: rgba(255,255,255,0.1);">
-                            ▶️ Play Sample
+                        <button id="playVoiceBtn" type="button" class="play-sample-btn">
+                            <span class="btn-icon">▶️</span> Play Sample
                         </button>
                     </div>
                 </div>
@@ -354,7 +354,21 @@
                 currentAudio.currentTime = 0;
             }
             currentAudio = new Audio(`/static/samples/${selectedLanguage}_${voiceKey}.mp3`);
-            currentAudio.play().catch(e => console.error("Audio play failed:", e));
+            
+            // Add visual feedback
+            playVoiceBtn.classList.add('playing');
+            playVoiceBtn.innerHTML = '<span class="btn-icon">🔊</span> Playing...';
+            
+            currentAudio.addEventListener('ended', () => {
+                playVoiceBtn.classList.remove('playing');
+                playVoiceBtn.innerHTML = '<span class="btn-icon">▶️</span> Play Sample';
+            });
+            
+            currentAudio.play().catch(e => {
+                console.error("Audio play failed:", e);
+                playVoiceBtn.classList.remove('playing');
+                playVoiceBtn.innerHTML = '<span class="btn-icon">▶️</span> Play Sample';
+            });
         });
 
         // ═══════════════════════════════════════════════════════

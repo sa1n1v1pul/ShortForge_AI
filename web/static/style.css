@@ -609,6 +609,37 @@ select.text-input option {
     border-color: rgba(255, 255, 255, 0.15);
 }
 
+.play-sample-btn {
+    padding: 12px 20px;
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.play-sample-btn:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.2);
+}
+
+.play-sample-btn.playing {
+    background: var(--accent-gradient);
+    color: white;
+    border-color: transparent;
+    animation: pulse 1.5s infinite;
+}
+
 /* ═══════════════════════════════════════════════════════════ */
 /*  VIDEO LIST                                                 */
 /* ═══════════════════════════════════════════════════════════ */
