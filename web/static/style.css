@@ -614,7 +614,7 @@ select.text-input option {
     background: rgba(168, 85, 247, 0.1);
     border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: var(--radius-sm);
-    color: var(--accent);
+    color: white;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
