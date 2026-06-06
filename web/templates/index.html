@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShortForge AI — Video Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <div>
+                    <h1>ShortForge AI</h1>
+                    <p class="tagline">AI-Powered Dharmic Short Videos</p>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="status-dot"></span>
+                <span>Engine Ready</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <!-- Generator Card -->
+        <section class="card generator-card" id="generatorCard">
+            <div class="card-header">
+                <h2>✨ Create New Video</h2>
+            </div>
+
+            <div class="card-body">
+                <!-- Character/Niche Selector -->
+                <div class="form-group">
+                    <label>🎭 Character / Niche</label>
+                    <div class="niche-grid" id="nicheGrid">
+                        {% for key, info in niches.items() %}
+                        <button class="niche-btn {% if loop.first %}active{% endif %}" data-niche="{{ key }}">
+                            <span class="niche-emoji">{{ info.emoji }}</span>
+                            <span class="niche-name">{{ info.name }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Topic / Prompt -->
+                <div class="form-group">
+                    <div class="label-row">
+                        <label>📝 Topic / Prompt</label>
+                        <div class="toggle-group">
+                            <span class="toggle-label" id="modeLabel">Auto AI</span>
+                            <button class="toggle-btn" id="modeToggle" data-mode="auto">
+                                <span class="toggle-slider"></span>
+                            </button>
+                            <span class="toggle-label-alt">Manual</span>
+                        </div>
+                    </div>
+                    <div id="autoMode">
+                        <input type="text" id="topicInput" 
+                               placeholder="e.g., कृष्ण की माखन चोरी और यशोदा माँ का गुस्सा" 
+                               class="text-input">
+                        <p class="help-text">खाली छोड़ दें तो AI खुद topic चुनेगा</p>
+                    </div>
+                    <div id="manualMode" style="display: none;">
+                        <textarea id="promptInput" rows="4" 
+                                  placeholder="अपनी कहानी / स्क्रिप्ट यहाँ लिखें... AI इसे scenes में बाँट देगा"
+                                  class="text-input textarea"></textarea>
+                        <p class="help-text">अपनी पूरी कहानी लिखें, AI उसे video scenes में convert कर देगा</p>
+                    </div>
+                </div>
+
+                <!-- Duration Selector -->
+                <div class="form-group">
+                    <label>⏱️ Video Duration</label>
+                    <div class="duration-grid" id="durationGrid">
+                        <button class="duration-btn" data-duration="15">15s<br><small>2-3 scenes</small></button>
+                        <button class="duration-btn" data-duration="30">30s<br><small>4-5 scenes</small></button>
+                        <button class="duration-btn active" data-duration="45">45s<br><small>5-6 scenes</small></button>
+                        <button class="duration-btn" data-duration="60">60s<br><small>7-8 scenes</small></button>
+                        <button class="duration-btn" data-duration="90">90s<br><small>9-10 scenes</small></button>
+                    </div>
+                </div>
+
+                <!-- Veo Animation Toggle -->
+                <div class="form-group">
+                    <div class="label-row">
+                        <label>🎥 AI Animation (Veo)</label>
+                        <div class="toggle-group">
+                            <span class="toggle-label">OFF (Free)</span>
+                            <button class="toggle-btn" id="animateToggle" data-mode="off">
+                                <span class="toggle-slider"></span>
+                            </button>
+                            <span class="toggle-label-alt">ON (₹50/scene)</span>
+                        </div>
+                    </div>
+                    <p class="help-text" id="animateHelp">
+                        <span class="cost-badge cost-free">💚 Ken Burns effect — FREE</span>
+                    </p>
+                </div>
+
+                <!-- Cost Estimate -->
+                <div class="cost-estimate" id="costEstimate">
+                    <div class="cost-row">
+                        <span>Estimated Cost:</span>
+                        <span class="cost-value" id="costValue">~₹5-6</span>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="generate-btn" id="generateBtn" onclick="startGeneration()">
+                    <span class="btn-icon">🎬</span>
+                    <span class="btn-text">Generate Video</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Progress Card (hidden initially) -->
+        <section class="card progress-card" id="progressCard" style="display: none;">
+            <div class="card-header">
+                <h2>⚡ Generating Video...</h2>
+                <span class="job-id" id="jobIdLabel"></span>
+            </div>
+            <div class="card-body">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%">
+                        <span class="progress-text" id="progressText">0%</span>
+                    </div>
+                </div>
+                <div class="progress-status">
+                    <div class="status-icon" id="statusIcon">⏳</div>
+                    <p class="status-message" id="statusMessage">Starting pipeline...</p>
+                </div>
+                <div class="progress-steps" id="progressSteps">
+                    <div class="step" data-step="script">
+                        <span class="step-icon">📝</span>
+                        <span class="step-label">Script</span>
+                    </div>
+                    <div class="step" data-step="voice">
+                        <span class="step-icon">🗣️</span>
+                        <span class="step-label">Voice</span>
+                    </div>
+                    <div class="step" data-step="images">
+                        <span class="step-icon">🎨</span>
+                        <span class="step-label">Images</span>
+                    </div>
+                    <div class="step" data-step="captions">
+                        <span class="step-icon">📝</span>
+                        <span class="step-label">Captions</span>
+                    </div>
+                    <div class="step" data-step="assembly">
+                        <span class="step-icon">🎬</span>
+                        <span class="step-label">Assemble</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Result Card (hidden initially) -->
+        <section class="card result-card" id="resultCard" style="display: none;">
+            <div class="card-header">
+                <h2>🎉 Video Ready!</h2>
+            </div>
+            <div class="card-body">
+                <video id="resultVideo" controls class="result-video"></video>
+                <div class="result-info">
+                    <p id="resultFilename"></p>
+                    <button class="btn-secondary" onclick="openVideoFolder()">📁 Open Folder</button>
+                    <button class="generate-btn small" onclick="resetForm()">✨ Create Another</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Videos -->
+        <section class="card videos-card">
+            <div class="card-header">
+                <h2>📂 Recent Videos</h2>
+                <button class="btn-icon-small" onclick="loadVideos()">🔄</button>
+            </div>
+            <div class="card-body">
+                <div class="video-list" id="videoList">
+                    <p class="empty-text">Loading...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>ShortForge AI v3 — Made with ❤️ for Dharmic Content Creators</p>
+    </footer>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        //  STATE
+        // ═══════════════════════════════════════════════════════
+        let selectedNiche = '{{ (niches.keys()|list)[0] }}';
+        let selectedDuration = 45;
+        let isManualMode = false;
+        let isAnimateOn = false;
+        let currentJobId = null;
+        let pollInterval = null;
+
+        // ═══════════════════════════════════════════════════════
+        //  NICHE SELECTION
+        // ═══════════════════════════════════════════════════════
+        document.querySelectorAll('.niche-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.niche-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedNiche = btn.dataset.niche;
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  DURATION SELECTION
+        // ═══════════════════════════════════════════════════════
+        document.querySelectorAll('.duration-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedDuration = parseInt(btn.dataset.duration);
+                updateCost();
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  MODE TOGGLE (Auto/Manual)
+        // ═══════════════════════════════════════════════════════
+        document.getElementById('modeToggle').addEventListener('click', function() {
+            isManualMode = !isManualMode;
+            this.classList.toggle('active', isManualMode);
+            document.getElementById('autoMode').style.display = isManualMode ? 'none' : 'block';
+            document.getElementById('manualMode').style.display = isManualMode ? 'block' : 'none';
+            document.getElementById('modeLabel').textContent = isManualMode ? 'Manual' : 'Auto AI';
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  ANIMATION TOGGLE
+        // ═══════════════════════════════════════════════════════
+        document.getElementById('animateToggle').addEventListener('click', function() {
+            isAnimateOn = !isAnimateOn;
+            this.classList.toggle('active', isAnimateOn);
+            const help = document.getElementById('animateHelp');
+            if (isAnimateOn) {
+                help.innerHTML = '<span class="cost-badge cost-paid">⚠️ Veo Animation — ~₹50/scene</span>';
+            } else {
+                help.innerHTML = '<span class="cost-badge cost-free">💚 Ken Burns effect — FREE</span>';
+            }
+            updateCost();
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  COST ESTIMATE
+        // ═══════════════════════════════════════════════════════
+        function updateCost() {
+            const sceneCounts = {15: 2, 30: 4, 45: 5, 60: 7, 90: 9};
+            const scenes = sceneCounts[selectedDuration] || 5;
+            let cost = 5 + (scenes * 1); // Base: text + images
+            if (isAnimateOn) {
+                cost += scenes * 50; // Veo cost
+            }
+            document.getElementById('costValue').textContent = `~₹${cost}`;
+            document.getElementById('costValue').className = isAnimateOn ? 'cost-value cost-warn' : 'cost-value';
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  GENERATE
+        // ═══════════════════════════════════════════════════════
+        async function startGeneration() {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.querySelector('.btn-text').textContent = 'Starting...';
+
+            const payload = {
+                niche: selectedNiche,
+                duration: selectedDuration,
+                animate: isAnimateOn,
+                mode: isManualMode ? 'manual' : 'auto',
+                topic: document.getElementById('topicInput')?.value || '',
+                prompt: document.getElementById('promptInput')?.value || '',
+            };
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                currentJobId = data.job_id;
+
+                // Show progress card
+                document.getElementById('generatorCard').style.display = 'none';
+                document.getElementById('progressCard').style.display = 'block';
+                document.getElementById('resultCard').style.display = 'none';
+                document.getElementById('jobIdLabel').textContent = `Job: ${currentJobId}`;
+
+                // Start polling
+                pollInterval = setInterval(pollStatus, 2000);
+
+            } catch (err) {
+                alert('Error starting generation: ' + err.message);
+                btn.disabled = false;
+                btn.querySelector('.btn-text').textContent = 'Generate Video';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  POLL STATUS
+        // ═══════════════════════════════════════════════════════
+        async function pollStatus() {
+            if (!currentJobId) return;
+            try {
+                const res = await fetch(`/api/status/${currentJobId}`);
+                const job = await res.json();
+
+                // Update progress bar
+                const pct = Math.max(0, Math.min(100, job.progress || 0));
+                document.getElementById('progressBar').style.width = pct + '%';
+                document.getElementById('progressText').textContent = pct + '%';
+                document.getElementById('statusMessage').textContent = job.message || 'Processing...';
+
+                // Update step indicators
+                const steps = ['script', 'voice', 'images', 'captions', 'assembly'];
+                const stepProgress = {script: 15, voice: 30, images: 50, captions: 75, assembly: 85};
+                steps.forEach(step => {
+                    const el = document.querySelector(`.step[data-step="${step}"]`);
+                    if (el) {
+                        if (pct >= (stepProgress[step] || 0) + 10) {
+                            el.classList.add('done');
+                            el.classList.remove('active');
+                        } else if (pct >= (stepProgress[step] || 0)) {
+                            el.classList.add('active');
+                            el.classList.remove('done');
+                        }
+                    }
+                });
+
+                // Check if done
+                if (job.status === 'complete') {
+                    clearInterval(pollInterval);
+                    showResult(job);
+                } else if (job.status === 'error') {
+                    clearInterval(pollInterval);
+                    document.getElementById('statusIcon').textContent = '❌';
+                    document.getElementById('statusMessage').textContent = 'Error: ' + (job.message || 'Unknown');
+                    setTimeout(resetForm, 5000);
+                }
+
+            } catch (err) {
+                console.error('Poll error:', err);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  SHOW RESULT
+        // ═══════════════════════════════════════════════════════
+        function showResult(job) {
+            document.getElementById('progressCard').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'block';
+
+            if (job.filename) {
+                const videoUrl = `/video/${job.filename.split('/').pop() ? new Date().toISOString().split('T')[0] : ''}/${job.filename}`;
+                // Try to find the video URL from the API
+                fetch('/api/videos').then(r => r.json()).then(videos => {
+                    if (videos.length > 0) {
+                        const vid = videos[0];
+                        document.getElementById('resultVideo').src = vid.url;
+                        document.getElementById('resultFilename').textContent = `${vid.name} (${vid.size_mb} MB)`;
+                    }
+                });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  RESET FORM
+        // ═══════════════════════════════════════════════════════
+        function resetForm() {
+            document.getElementById('generatorCard').style.display = 'block';
+            document.getElementById('progressCard').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'none';
+            
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = false;
+            btn.querySelector('.btn-text').textContent = 'Generate Video';
+
+            // Reset progress
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('done', 'active');
+            });
+
+            currentJobId = null;
+            if (pollInterval) clearInterval(pollInterval);
+
+            loadVideos();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  LOAD RECENT VIDEOS
+        // ═══════════════════════════════════════════════════════
+        async function loadVideos() {
+            try {
+                const res = await fetch('/api/videos');
+                const videos = await res.json();
+                const list = document.getElementById('videoList');
+                
+                if (videos.length === 0) {
+                    list.innerHTML = '<p class="empty-text">No videos yet. Create your first one!</p>';
+                    return;
+                }
+
+                list.innerHTML = videos.map(v => `
+                    <div class="video-item">
+                        <div class="video-item-info">
+                            <span class="video-name">${v.name.substring(0, 40)}${v.name.length > 40 ? '...' : ''}</span>
+                            <span class="video-meta">${v.date} • ${v.size_mb} MB</span>
+                        </div>
+                        <div class="video-actions">
+                            <button class="btn-sm" onclick="playVideo('${v.url}')">▶️ Play</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('videoList').innerHTML = '<p class="empty-text">Could not load videos</p>';
+            }
+        }
+
+        function playVideo(url) {
+            document.getElementById('resultCard').style.display = 'block';
+            document.getElementById('resultVideo').src = url;
+            document.getElementById('resultVideo').play();
+            window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior: 'smooth' });
+        }
+
+        function openVideoFolder() {
+            alert('Video saved in: D:\\ShortForge-AI\\output\\');
+        }
+
+        // Load videos on start
+        loadVideos();
+        updateCost();
+    </script>
+</body>
+</html>

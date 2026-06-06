@@ -1,13 +1,12 @@
 """
 ╔═══════════════════════════════════════════════════════════════╗
-║  🎬 ShortForge AI — Automated Faceless Shorts Generator      ║
+║  🎬 ShortForge AI — Automated Faceless Shorts Generator v3   ║
 ║  ─────────────────────────────────────────────────────────────║
-║  One command → Ready-to-upload YouTube Shorts / Insta Reels   ║
-║                                                               ║
 ║  Usage:                                                       ║
 ║    python main.py                           (interactive)     ║
-║    python main.py --topic "5 amazing facts" (direct)          ║
-║    python main.py --niche psychology --count 3 (batch)        ║
+║    python main.py --topic "Krishna story" --duration 30       ║
+║    python main.py --niche shiv_parvati --count 3              ║
+║    python web/app.py                        (Web UI mode)     ║
 ╚═══════════════════════════════════════════════════════════════╝
 """
 
@@ -24,79 +23,62 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import (
     GEMINI_API_KEY, NICHES,
-    DEFAULT_LANGUAGE, DEFAULT_NICHE,
+    DEFAULT_LANGUAGE, DEFAULT_NICHE, DEFAULT_DURATION,
     TEMP_DIR, OUTPUT_DIR, FONTS_DIR, MUSIC_DIR,
+    ENABLE_VEO_ANIMATION, get_scene_count,
 )
 from pipeline.script_writer import generate_script
 from pipeline.voice_generator import generate_all_voices
 from pipeline.media_fetcher import fetch_all_media
 from pipeline.video_animator import animate_all_scenes
 from pipeline.image_enhancer import enhance_all_images
-from pipeline.caption_maker import generate_word_captions, generate_sentence_captions
+from pipeline.caption_generator import generate_word_captions, generate_sentence_captions
 from pipeline.video_assembler import assemble_final_video
 
 
-# Fix Windows terminal encoding for Unicode characters
-import io
-if hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-elif hasattr(sys.stdout, "buffer"):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
-
 def print_banner():
-    """Print the startup banner."""
-    print()
-    try:
-        print("=" * 63)
-        print("  ShortForge AI - Automated Faceless Shorts Generator")
-        print("  Gemini AI + Real-ESRGAN + Edge-TTS + FFmpeg")
-        print("  One command -> Ready-to-upload content")
-        print("=" * 63)
-    except Exception:
-        print("  ShortForge AI - Ready!")
-    print()
+    print("""
+===============================================================
+  ShortForge AI - Automated Faceless Shorts Generator v3
+  Gemini AI + Real-ESRGAN + Edge-TTS + FFmpeg
+  One command -> Ready-to-upload content
+===============================================================
+""")
 
 
 def check_prerequisites():
-    """Check that all required tools and API keys are configured."""
+    """Verify required tools and files exist."""
     issues = []
+    ok = True
 
-    # Check API keys
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
-        issues.append("❌ GEMINI_API_KEY not set in config.py")
-
-    # Check FFmpeg
-    try:
+    # FFmpeg
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
         import subprocess
-        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            ver = result.stdout.split("\n")[0]
-            print(f"  ✅ FFmpeg: {ver[:60]}")
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        # Check common locations
-        found = False
-        for p in [r"C:\ffmpeg\bin\ffmpeg.exe", r"D:\ffmpeg\bin\ffmpeg.exe"]:
-            if Path(p).exists():
-                print(f"  ✅ FFmpeg found: {p}")
-                found = True
-                break
-        if not found:
-            issues.append("❌ FFmpeg not found! Install from https://ffmpeg.org/download.html")
+        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True)
+        version = result.stdout.split("\n")[0][:60] if result.stdout else "unknown"
+        print(f"  ✅ FFmpeg: {version}")
+    else:
+        issues.append("  ❌ FFmpeg not found! Install from https://ffmpeg.org")
 
-    # Check Real-ESRGAN
+    # Real-ESRGAN (optional)
     from config import ESRGAN_ENGINE
     if Path(ESRGAN_ENGINE).exists():
         print(f"  ✅ Real-ESRGAN engine ready")
     else:
-        issues.append(f"⚠️  Real-ESRGAN not found at {ESRGAN_ENGINE} — images won't be enhanced")
+        issues.append(f"  ⚠️  Real-ESRGAN not found at {ESRGAN_ENGINE} (enhancement disabled)")
 
-    # Print issues
+    # Gemini API
+    if not GEMINI_API_KEY or len(GEMINI_API_KEY) < 10:
+        issues.append("  ❌ GEMINI_API_KEY not set!")
+
+    # Fonts
+    FONTS_DIR.mkdir(parents=True, exist_ok=True)
+    MUSIC_DIR.mkdir(parents=True, exist_ok=True)
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     if issues:
-        print()
         for issue in issues:
             print(f"  {issue}")
         print()
@@ -115,33 +97,53 @@ def create_single_video(
     language: str = DEFAULT_LANGUAGE,
     topic: str | None = None,
     enhance_images: bool = True,
-    caption_style: str = "word",  # "word" or "sentence"
+    caption_style: str = "sentence",
+    target_duration: int = DEFAULT_DURATION,
+    enable_animation: bool = False,
+    manual_prompt: str | None = None,
+    progress_callback=None,
 ) -> str | None:
     """
     Generate a single video from scratch.
     This is the main pipeline orchestrator.
+    
+    Args:
+        target_duration: Video duration in seconds (15, 30, 45, 60, 90)
+        enable_animation: Enable Veo animation (expensive!)
+        manual_prompt: User's own script text (manual mode)
+        progress_callback: Function(step, message) for UI progress updates
     """
     job_id = str(uuid.uuid4())[:8]
     start_time = time.time()
+
+    def _progress(step: str, msg: str):
+        if progress_callback:
+            progress_callback(step, msg)
 
     print(f"\n{'='*60}")
     print(f"  🎬 NEW VIDEO — Job: {job_id}")
     print(f"  Niche: {NICHES.get(niche, {}).get('name', niche)}")
     print(f"  Language: {language}")
+    print(f"  Duration: {target_duration}s | Scenes: {get_scene_count(target_duration)}")
+    print(f"  Animation: {'🎥 VEO (costly!)' if enable_animation else '🖼️ Ken Burns (free)'}")
     if topic:
         print(f"  Topic: {topic}")
     print(f"{'='*60}")
 
     try:
         # ── Step 1: Generate Script ──────────────────────────────
+        _progress("script", "Generating script with AI...")
         script = generate_script(
             niche=niche,
             language=language,
             topic=topic,
+            target_duration=target_duration,
+            manual_prompt=manual_prompt,
         )
         scenes = script["scenes"]
 
         # ── Step 2: Generate Voices ──────────────────────────────
+        _progress("voice", f"Generating Hindi voice for {len(scenes)} scenes...")
         scenes = generate_all_voices(
             scenes=scenes,
             job_id=job_id,
@@ -150,6 +152,7 @@ def create_single_video(
         )
 
         # ── Step 3: Generate/Fetch Images ─────────────────────────
+        _progress("images", f"Creating AI cartoon images for {len(scenes)} scenes...")
         scenes = fetch_all_media(
             scenes=scenes,
             job_id=job_id,
@@ -157,12 +160,18 @@ def create_single_video(
             media_type="image",
         )
 
-        # ── Step 3.5: Animate Images with Veo ────────────────────
-        scenes = animate_all_scenes(
-            scenes=scenes,
-            job_id=job_id,
-            niche=niche,
-        )
+        # ── Step 3.5: Animate Images with Veo (OPTIONAL) ─────────
+        if enable_animation:
+            _progress("animation", f"Animating {len(scenes)} scenes with Veo (this is costly!)...")
+            scenes = animate_all_scenes(
+                scenes=scenes,
+                job_id=job_id,
+                niche=niche,
+            )
+        else:
+            print(f"\n🖼️  Animation: SKIPPED (Ken Burns effect will be used — FREE)")
+            for s in scenes:
+                s["animated_path"] = None
 
         # ── Step 4: Enhance Images (only for Pexels, AI images already HD) ──
         has_pexels_images = any(s.get("media_type") == "pexels" for s in scenes)
@@ -173,12 +182,14 @@ def create_single_video(
         )
 
         # ── Step 5: Generate Captions ────────────────────────────
+        _progress("captions", "Creating Hindi captions...")
         if caption_style == "word":
             captions_path = generate_word_captions(scenes, job_id)
         else:
             captions_path = generate_sentence_captions(scenes, job_id)
 
         # ── Step 6: Assemble Final Video ─────────────────────────
+        _progress("assembly", "Assembling final video...")
         final_path = assemble_final_video(
             scenes=scenes,
             captions_path=captions_path,
@@ -191,6 +202,7 @@ def create_single_video(
         elapsed = time.time() - start_time
 
         if final_path:
+            _progress("complete", f"Video ready! {Path(final_path).name}")
             print(f"\n  🎉 VIDEO COMPLETE!")
             print(f"  ⏱️  Total time: {elapsed:.0f} seconds")
             print(f"  📁 Saved: {final_path}")
@@ -199,12 +211,14 @@ def create_single_video(
             print(f"  #️⃣  Hashtags: {script.get('hashtags', 'N/A')}")
             print(f"\n  📤 Ready to upload to YouTube / Instagram / Facebook!")
         else:
+            _progress("error", "Video generation failed")
             print(f"\n  ❌ Video generation failed after {elapsed:.0f}s")
 
         return final_path
 
     except Exception as e:
         import traceback
+        _progress("error", str(e))
         print(f"\n  ❌ Error: {e}")
         traceback.print_exc()
         return None
@@ -227,83 +241,17 @@ def _cleanup_temp(job_id: str):
         pass
 
 
-def interactive_mode():
-    """Run in interactive mode — ask user what to generate."""
-    print_banner()
-
-    if not check_prerequisites():
-        return
-
-    print("\n📋 Available Niches:")
-    niche_list = list(NICHES.items())
-    for i, (key, info) in enumerate(niche_list, 1):
-        print(f"   {i}. {info['emoji']} {info['name']}")
-
-    print()
-    choice = input("Choose niche (number or name) [1]: ").strip() or "1"
-
-    try:
-        idx = int(choice) - 1
-        niche = niche_list[idx][0]
-    except (ValueError, IndexError):
-        niche = choice if choice in NICHES else DEFAULT_NICHE
-
-    print(f"\n✅ Niche: {NICHES[niche]['name']}")
-
-    # Language
-    lang = input("\nLanguage (english/hindi/hinglish) [english]: ").strip() or "english"
-
-    # Custom topic
-    topic = input("\nCustom topic (or press Enter for auto): ").strip() or None
-
-    # Number of videos
-    count_str = input("\nHow many videos? [1]: ").strip() or "1"
-    count = max(1, min(10, int(count_str)))
-
-    # Enhancement
-    enhance = input("\nEnhance images with Real-ESRGAN? (y/n) [y]: ").strip().lower() != "n"
-
-    print(f"\n🚀 Generating {count} video(s)...")
-    print(f"   Niche: {NICHES[niche]['name']}")
-    print(f"   Language: {lang}")
-    print(f"   Enhancement: {'ON' if enhance else 'OFF'}")
-
-    results = []
-    for i in range(count):
-        if count > 1:
-            print(f"\n{'━'*60}")
-            print(f"  📹 Video {i + 1} of {count}")
-            print(f"{'━'*60}")
-
-        path = create_single_video(
-            niche=niche,
-            language=lang,
-            topic=topic,
-            enhance_images=enhance,
-        )
-        if path:
-            results.append(path)
-
-    # Summary
-    print(f"\n\n{'═'*60}")
-    print(f"  🎬 SESSION COMPLETE")
-    print(f"{'═'*60}")
-    print(f"  ✅ Generated: {len(results)}/{count} videos")
-    for i, p in enumerate(results, 1):
-        print(f"  {i}. {p}")
-    print(f"{'═'*60}")
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="🎬 ShortForge AI — Automated Faceless Shorts Generator",
+        description="🎬 ShortForge AI — Automated Faceless Shorts Generator v3",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                                    Interactive mode
-  python main.py --topic "5 psychology facts"       Single video
-  python main.py --niche tech_ai --count 5          Batch mode
-  python main.py --niche horror --lang hindi         Hindi horror facts
+  python main.py --topic "Krishna ki Makhan Chori" --duration 30
+  python main.py --niche shiv_parvati --duration 45
+  python main.py --niche radha_krishna --count 3 --duration 30
+  python main.py --niche hanuman --duration 15 --animate    (Veo ON, costly!)
+  python web/app.py                                          (Web UI mode)
         """,
     )
     parser.add_argument("--topic", "-t", help="Specific topic for the video")
@@ -315,13 +263,18 @@ Examples:
                         help=f"Language (default: {DEFAULT_LANGUAGE})")
     parser.add_argument("--count", "-c", type=int, default=1,
                         help="Number of videos to generate (default: 1)")
+    parser.add_argument("--duration", "-d", type=int, default=DEFAULT_DURATION,
+                        choices=[15, 30, 45, 60, 90],
+                        help=f"Target video duration in seconds (default: {DEFAULT_DURATION})")
     parser.add_argument("--no-enhance", action="store_true",
                         help="Skip Real-ESRGAN image enhancement")
-    parser.add_argument("--captions", default="word",
+    parser.add_argument("--captions", default="sentence",
                         choices=["word", "sentence"],
-                        help="Caption style (default: word)")
-    parser.add_argument("--interactive", "-i", action="store_true",
-                        help="Force interactive mode")
+                        help="Caption style (default: sentence)")
+    parser.add_argument("--animate", action="store_true",
+                        help="Enable Veo animation (WARNING: ~₹50/scene!)")
+    parser.add_argument("--manual-prompt", "-m", type=str, default=None,
+                        help="Your own script/story text (manual mode)")
 
     args = parser.parse_args()
 
@@ -329,11 +282,6 @@ Examples:
 
     if not check_prerequisites():
         sys.exit(1)
-
-    # If no arguments provided, run interactive mode
-    if len(sys.argv) == 1 or args.interactive:
-        interactive_mode()
-        return
 
     # Batch/direct mode
     print(f"\n🚀 Generating {args.count} video(s)...")
@@ -351,6 +299,9 @@ Examples:
             topic=args.topic,
             enhance_images=not args.no_enhance,
             caption_style=args.captions,
+            target_duration=args.duration,
+            enable_animation=args.animate,
+            manual_prompt=args.manual_prompt,
         )
         if path:
             results.append(path)
