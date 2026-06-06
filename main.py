@@ -32,7 +32,7 @@ from pipeline.voice_generator import generate_all_voices
 from pipeline.media_fetcher import fetch_all_media
 from pipeline.video_animator import animate_all_scenes
 from pipeline.image_enhancer import enhance_all_images
-from pipeline.caption_generator import generate_word_captions, generate_sentence_captions
+from pipeline.caption_maker import generate_word_captions, generate_sentence_captions
 from pipeline.video_assembler import assemble_final_video
 
 
