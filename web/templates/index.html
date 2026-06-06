@@ -45,6 +45,11 @@
                         </button>
                         {% endfor %}
                     </div>
+                    <div class="custom-niche-container" style="margin-top: 15px;">
+                        <input type="text" id="customNicheInput" 
+                               placeholder="Or type custom character (e.g., Aaloo and Gobhi)..." 
+                               class="text-input" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);">
+                    </div>
                 </div>
 
                 <!-- Script / Prompt -->
@@ -200,12 +205,27 @@
         // ═══════════════════════════════════════════════════════
         //  NICHE SELECTION
         // ═══════════════════════════════════════════════════════
+        const customNicheInput = document.getElementById('customNicheInput');
+        
         document.querySelectorAll('.niche-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.niche-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedNiche = btn.dataset.niche;
+                customNicheInput.value = ''; // Clear custom input when button clicked
             });
+        });
+
+        customNicheInput.addEventListener('input', () => {
+            if (customNicheInput.value.trim() !== '') {
+                document.querySelectorAll('.niche-btn').forEach(b => b.classList.remove('active'));
+            } else {
+                // If cleared, default back to the first one (or keep empty)
+                if(!document.querySelector('.niche-btn.active')) {
+                    document.querySelector('.niche-btn').classList.add('active');
+                    selectedNiche = document.querySelector('.niche-btn').dataset.niche;
+                }
+            }
         });
 
         // ═══════════════════════════════════════════════════════
@@ -285,8 +305,11 @@
             btn.disabled = true;
             btn.querySelector('.btn-text').textContent = 'Starting...';
 
+            const customNiche = document.getElementById('customNicheInput').value.trim();
+            const finalNiche = customNiche || selectedNiche;
+
             const payload = {
-                niche: selectedNiche,
+                niche: finalNiche,
                 duration: selectedDuration,
                 animate: isAnimateOn,
                 mode: isAutoMode ? 'auto' : 'manual',
