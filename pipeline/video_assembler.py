@@ -70,6 +70,48 @@ def _get_font_path() -> str | None:
     return None
 
 
+def _combine_video_audio(
+    video_path: str,
+    audio_path: str,
+    duration: float,
+    scene_index: int,
+    job_id: str,
+    ffmpeg: str = "ffmpeg",
+) -> str | None:
+    """
+    Combine a Veo-animated video clip with narration audio.
+    Loops/trims the video to match audio duration.
+    """
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    output_path = str(TEMP_DIR / f"{job_id}_scene_clip_{scene_index:03d}.mp4")
+
+    cmd = [
+        ffmpeg, "-y",
+        "-stream_loop", "-1",  # Loop video if shorter than audio
+        "-i", video_path,
+        "-i", audio_path,
+        "-filter_complex",
+        f"[0:v]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
+        f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={VIDEO_FPS}[v]",
+        "-map", "[v]",
+        "-map", "1:a",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        "-pix_fmt", "yuv420p",
+        output_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if Path(output_path).exists():
+            return output_path
+        else:
+            return None
+    except Exception:
+        return None
+
+
 def create_scene_video(
     image_path: str,
     audio_path: str,
@@ -323,26 +365,44 @@ def assemble_final_video(
     # Step 1: Create scene clips
     print(f"\n   📽️  Creating {len(scenes)} scene clips...")
     scene_clips = []
+    animated_count = 0
     for i, scene in enumerate(scenes):
-        image_path = scene.get("enhanced_path") or scene.get("media_path")
         audio_path = scene.get("audio_path")
 
         if not audio_path:
             print(f"   ⚠️  Scene {i + 1}: No audio, skipping")
             continue
 
-        clip_path = create_scene_video(
-            image_path=image_path or "",
-            audio_path=audio_path,
-            duration=scene.get("duration", 5.0),
-            scene_index=i,
-            job_id=job_id,
-            ffmpeg=ffmpeg,
-        )
+        # Priority: Veo animated clip > enhanced image > raw image
+        animated_path = scene.get("animated_path")
+        image_path = scene.get("enhanced_path") or scene.get("media_path")
+
+        if animated_path and Path(animated_path).exists():
+            # Use Veo animated clip — just combine with audio
+            clip_path = _combine_video_audio(
+                video_path=animated_path,
+                audio_path=audio_path,
+                duration=scene.get("duration", 5.0),
+                scene_index=i,
+                job_id=job_id,
+                ffmpeg=ffmpeg,
+            )
+            animated_count += 1
+        else:
+            # Fallback: static image + Ken Burns effect
+            clip_path = create_scene_video(
+                image_path=image_path or "",
+                audio_path=audio_path,
+                duration=scene.get("duration", 5.0),
+                scene_index=i,
+                job_id=job_id,
+                ffmpeg=ffmpeg,
+            )
 
         if clip_path:
             scene_clips.append(clip_path)
-            print(f"   ✅ Scene {i + 1} clip ready")
+            tag = "🎥" if animated_path and Path(animated_path).exists() else "✅"
+            print(f"   {tag} Scene {i + 1} clip ready")
         else:
             print(f"   ❌ Scene {i + 1} clip failed")
 

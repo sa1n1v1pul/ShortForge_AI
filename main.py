@@ -30,6 +30,7 @@ from config import (
 from pipeline.script_writer import generate_script
 from pipeline.voice_generator import generate_all_voices
 from pipeline.media_fetcher import fetch_all_media
+from pipeline.video_animator import animate_all_scenes
 from pipeline.image_enhancer import enhance_all_images
 from pipeline.caption_maker import generate_word_captions, generate_sentence_captions
 from pipeline.video_assembler import assemble_final_video
@@ -154,6 +155,13 @@ def create_single_video(
             job_id=job_id,
             niche=niche,
             media_type="image",
+        )
+
+        # ── Step 3.5: Animate Images with Veo ────────────────────
+        scenes = animate_all_scenes(
+            scenes=scenes,
+            job_id=job_id,
+            niche=niche,
         )
 
         # ── Step 4: Enhance Images (only for Pexels, AI images already HD) ──
