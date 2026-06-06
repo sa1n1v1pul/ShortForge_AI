@@ -8,8 +8,18 @@ import json
 import re
 from google import genai
 
-from config import GEMINI_API_KEY, SCENES_PER_VIDEO
+from config import GEMINI_API_KEY, GEMINI_API_KEY_FREE, SCENES_PER_VIDEO
 from templates.prompts import get_script_prompt
+
+
+def _call_gemini(prompt: str, api_key: str) -> str:
+    """Call Gemini API with given key and return response text."""
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return response.text.strip()
 
 
 def generate_script(
@@ -20,6 +30,7 @@ def generate_script(
 ) -> dict:
     """
     Generate a video script using Gemini API.
+    Tries paid key first, falls back to free key if credits exhausted.
 
     Returns dict with keys: title, scenes, description, hashtags
     Each scene has: text, image_query
@@ -32,15 +43,28 @@ def generate_script(
     # Build prompt
     prompt = get_script_prompt(niche, language, num_scenes, topic)
 
-    # Call Gemini
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    # Try paid key first, fallback to free key
+    raw_text = None
+    for key_name, key_value in [("paid", GEMINI_API_KEY), ("free", GEMINI_API_KEY_FREE)]:
+        try:
+            print(f"   Trying {key_name} key...")
+            raw_text = _call_gemini(prompt, key_value)
+            print(f"   ✅ {key_name} key worked!")
+            break
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "exhausted" in err_str.lower():
+                print(f"   ⚠️  {key_name} key credits exhausted, trying next...")
+                continue
+            elif "400" in err_str and "API_KEY_INVALID" in err_str:
+                print(f"   ⚠️  {key_name} key invalid, trying next...")
+                continue
+            else:
+                raise
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
-    )
+    if raw_text is None:
+        raise ValueError("Both Gemini API keys failed! Please check your keys or add credits.")
 
-    raw_text = response.text.strip()
 
     # Parse JSON from response (handle markdown code blocks)
     json_text = raw_text

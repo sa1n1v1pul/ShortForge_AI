@@ -200,13 +200,20 @@ def burn_captions(
     """Burn ASS subtitles into the video."""
     output_path = str(TEMP_DIR / f"{job_id}_captioned.mp4")
 
-    # FFmpeg requires forward slashes in ASS filter path on Windows
-    captions_escaped = captions_path.replace("\\", "/").replace(":", "\\\\:")
+    # Windows path escaping for FFmpeg filter:
+    # 1. Use forward slashes
+    # 2. Escape colons with \\:
+    # 3. Use the subtitles filter (more compatible than ass filter)
+    captions_escaped = captions_path.replace("\\", "/")
+    # Escape the drive letter colon (e.g., D: -> D\\:)
+    if len(captions_escaped) >= 2 and captions_escaped[1] == ":":
+        captions_escaped = captions_escaped[0] + "\\:" + captions_escaped[2:]
 
+    # Method 1: subtitles filter (most compatible)
     cmd = [
         ffmpeg, "-y",
         "-i", video_path,
-        "-vf", f"ass='{captions_escaped}'",
+        "-vf", f"subtitles='{captions_escaped}'",
         "-c:v", "libx264", "-preset", "fast", "-crf", "22",
         "-c:a", "copy",
         "-pix_fmt", "yuv420p",
@@ -215,19 +222,41 @@ def burn_captions(
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        if Path(output_path).exists():
+        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
             return output_path
-        else:
-            print(f"   ⚠️  Caption burn failed, trying alternative method...")
-            if result.stderr:
-                lines = result.stderr.strip().split("\n")
-                for line in lines[-3:]:
-                    print(f"      {line}")
-            # Fallback: return video without captions
-            return video_path
-    except Exception as e:
-        print(f"   ⚠️  Caption error: {e}, using video without captions")
-        return video_path
+    except Exception:
+        pass
+
+    # Method 2: copy ASS to temp with simple name, use that
+    try:
+        import shutil
+        simple_ass = str(TEMP_DIR / f"subs.ass")
+        shutil.copy2(captions_path, simple_ass)
+        simple_escaped = simple_ass.replace("\\", "/")
+        if len(simple_escaped) >= 2 and simple_escaped[1] == ":":
+            simple_escaped = simple_escaped[0] + "\\:" + simple_escaped[2:]
+
+        cmd2 = [
+            ffmpeg, "-y",
+            "-i", video_path,
+            "-vf", f"ass='{simple_escaped}'",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "copy",
+            "-pix_fmt", "yuv420p",
+            output_path,
+        ]
+        result = subprocess.run(cmd2, capture_output=True, text=True, timeout=180)
+        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
+            return output_path
+    except Exception:
+        pass
+
+    print(f"   ⚠️  Caption burn failed, using video without captions")
+    if result and result.stderr:
+        lines = result.stderr.strip().split("\n")
+        for line in lines[-3:]:
+            print(f"      {line}")
+    return video_path
 
 
 def add_background_music(
