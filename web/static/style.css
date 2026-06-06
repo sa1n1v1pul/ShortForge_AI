@@ -682,7 +682,10 @@ select.text-input option {
     box-shadow: inset 0 2px 4px rgba(255,255,255,0.6), 0 8px 20px rgba(0,0,0,0.05);
 }
 
-.video-item-info { flex: 1; }
+.video-item-info { 
+    flex: 1; 
+    min-width: 0; /* Crucial for text truncation in flexbox */
+}
 
 .video-name {
     display: block;
@@ -690,6 +693,15 @@ select.text-input option {
     font-weight: 800;
     color: var(--text-primary);
     margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.video-actions {
+    flex-shrink: 0;
+    margin-left: 12px;
 }
 
 .video-meta {
