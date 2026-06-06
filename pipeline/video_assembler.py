@@ -439,8 +439,18 @@ def assemble_final_video(
     today_dir = OUTPUT_DIR / date.today().isoformat()
     today_dir.mkdir(parents=True, exist_ok=True)
 
-    # Clean title for filename
-    safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title)
+    # Clean title for filename — preserve Devanagari matras (vowel marks)
+    import unicodedata
+    def _is_safe_char(c):
+        """Keep alphanumeric + Devanagari (including matras/combining marks) + safe chars."""
+        if c.isalnum() or c in " -_":
+            return True
+        # Keep Devanagari combining marks (matras like ा ि ी ु ू े ै ो ौ ं ः ृ ्)
+        cat = unicodedata.category(c)
+        if cat.startswith("M"):  # Mark category (Mn=nonspacing, Mc=spacing combining)
+            return True
+        return False
+    safe_title = "".join(c if _is_safe_char(c) else "" for c in title)
     safe_title = safe_title.strip().replace(" ", "_")[:50] or "video"
 
     # Find next available number

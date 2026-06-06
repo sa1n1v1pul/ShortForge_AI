@@ -10,6 +10,9 @@ def get_script_prompt(niche: str, language: str, num_scenes: int, topic: str | N
     """Build the Gemini prompt for generating a video script."""
 
     seconds_per_scene = max(5, target_duration // num_scenes)
+    # Hindi TTS speaks ~2.5 words/second, English ~3 words/second
+    words_per_scene = int(seconds_per_scene * 2.5) if language == "hindi" else int(seconds_per_scene * 3)
+    total_words = words_per_scene * num_scenes
 
     # Language instruction
     if language == "hindi":
@@ -18,30 +21,38 @@ def get_script_prompt(niche: str, language: str, num_scenes: int, topic: str | N
 सरल, भावनात्मक हिंदी जो भारतीय दर्शकों से जुड़े।
 अंग्रेज़ी शब्दों का बिल्कुल इस्तेमाल मत करो — शुद्ध हिंदी लिखो।
 image_prompt हमेशा English में लिखो (AI image generation के लिए)।
-हर scene का narration {seconds_per_scene} सेकंड का हो।"""
+
+⚠️ STRICT WORD LIMIT (बहुत ज़रूरी):
+- हर scene का text अधिकतम {words_per_scene} शब्द (1-2 वाक्य) — इससे ज़्यादा मत लिखो!
+- पूरी स्क्रिप्ट कुल {total_words} शब्दों से ज़्यादा नहीं होनी चाहिए।
+- हर scene = {seconds_per_scene} सेकंड बोलने में।"""
     else:
         lang_instruction = f"""Language: English. Keep it simple and engaging.
 Use hooks like "Did you know..." or "Here's something incredible..."
-Each scene narration should be about {seconds_per_scene} seconds long."""
+
+STRICT WORD LIMIT:
+- Each scene text MUST be maximum {words_per_scene} words (1-2 sentences) — DO NOT exceed!
+- Total script must not exceed {total_words} words.
+- Each scene = {seconds_per_scene} seconds of narration."""
 
     topic_line = f'\nSPECIFIC TOPIC: "{topic}"\n' if topic else ""
 
     # Get niche-specific prompt
     niche_prompts = {
-        "radha_krishna": _get_dharmic_prompt("radha_krishna", lang_instruction, topic_line, num_scenes, target_duration),
-        "shiv_parvati": _get_dharmic_prompt("shiv_parvati", lang_instruction, topic_line, num_scenes, target_duration),
-        "hanuman": _get_dharmic_prompt("hanuman", lang_instruction, topic_line, num_scenes, target_duration),
-        "mythology": _get_dharmic_prompt("mythology", lang_instruction, topic_line, num_scenes, target_duration),
-        "moral_stories": _get_dharmic_prompt("moral_stories", lang_instruction, topic_line, num_scenes, target_duration),
+        "radha_krishna": _get_dharmic_prompt("radha_krishna", lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words),
+        "shiv_parvati": _get_dharmic_prompt("shiv_parvati", lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words),
+        "hanuman": _get_dharmic_prompt("hanuman", lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words),
+        "mythology": _get_dharmic_prompt("mythology", lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words),
+        "moral_stories": _get_dharmic_prompt("moral_stories", lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words),
     }
 
     if niche in niche_prompts:
         return niche_prompts[niche]
     else:
-        return _get_general_prompt(niche, lang_instruction, topic_line, num_scenes, target_duration)
+        return _get_general_prompt(niche, lang_instruction, topic_line, num_scenes, target_duration, words_per_scene, total_words)
 
 
-def _get_dharmic_prompt(niche: str, lang_instruction: str, topic_line: str, num_scenes: int, target_duration: int) -> str:
+def _get_dharmic_prompt(niche: str, lang_instruction: str, topic_line: str, num_scenes: int, target_duration: int, words_per_scene: int = 18, total_words: int = 90) -> str:
     """Generate prompt for dharmic/religious content."""
 
     niche_contexts = {
@@ -91,8 +102,9 @@ CRITICAL RULES:
 2. Tell a COMPLETE STORY with beginning, middle, and climax
 3. End with a moral/wisdom or devotional call-to-action
 4. EXACTLY {num_scenes} scenes — no more, no less!
-5. Each scene = {max(5, target_duration // num_scenes)} seconds of narration (2-3 sentences)
-6. Total narration should be approximately {target_duration} seconds
+5. ⚠️ Each scene MAXIMUM {words_per_scene} Hindi words only (1-2 short sentences)! DO NOT WRITE MORE!
+6. Total script = approximately {total_words} words = {target_duration} seconds video
+7. If you write more than {words_per_scene} words per scene, the video timing will break!
 
 TEXT RULES (VERY IMPORTANT):
 - "text" field MUST be in देवनागरी हिंदी (Devanagari script)
@@ -119,7 +131,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}"""
 
 
-def _get_general_prompt(niche: str, lang_instruction: str, topic_line: str, num_scenes: int, target_duration: int) -> str:
+def _get_general_prompt(niche: str, lang_instruction: str, topic_line: str, num_scenes: int, target_duration: int, words_per_scene: int = 18, total_words: int = 90) -> str:
     """Generate prompt for general content niches."""
 
     return f"""You are ShortForge AI — a viral short-form video script generator.
@@ -136,7 +148,8 @@ SCRIPT RULES:
 3. Build curiosity through all scenes
 4. End with the most shocking revelation + call to action
 5. EXACTLY {num_scenes} scenes — no more, no less!
-6. Each scene = {max(5, target_duration // num_scenes)} seconds of narration
+6. ⚠️ Each scene MAXIMUM {words_per_scene} words (1-2 sentences)! DO NOT EXCEED!
+7. Total script = approximately {total_words} words = {target_duration} seconds
 
 IMAGE PROMPT RULES:
 - Each "image_prompt" must be in English
