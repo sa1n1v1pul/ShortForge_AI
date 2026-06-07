@@ -759,3 +759,85 @@ select.text-input option {
     
     .app-main { padding: 0 16px; margin: 24px auto; }
 }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  ADVANCED V2V THEME (Game Changer)                          */
+/* ═══════════════════════════════════════════════════════════ */
+/* Light Mode V2V Theme */
+html[data-theme="light"] body.advanced-theme {
+    --bg-base: #fdfcff;
+    --mesh-1: #ff00cc; 
+    --mesh-2: #333399; 
+    --mesh-3: #00ffff; 
+    
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-bg-hover: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(255, 0, 204, 0.3);
+    --glass-highlight: rgba(255, 255, 255, 1);
+    --glass-shadow: 0 10px 40px rgba(255, 0, 204, 0.1);
+    
+    --glass-input: rgba(255, 255, 255, 0.5);
+    --glass-input-focus: rgba(255, 255, 255, 0.9);
+    
+    --text-primary: #1e1e2d;
+    --text-secondary: #cc00a3;
+    
+    --accent: #ff00cc;
+    --accent-glow: rgba(255, 0, 204, 0.4);
+    --accent-gradient: linear-gradient(135deg, #ff00cc 0%, #00ffff 100%);
+}
+
+/* Dark Mode V2V Theme */
+html[data-theme="dark"] body.advanced-theme {
+    /* Extreme dark / neon theme for advanced mode */
+    --bg-base: #050505;
+    --mesh-1: #ff00cc; /* Neon Pink */
+    --mesh-2: #333399; /* Deep Blue */
+    --mesh-3: #00ffff; /* Cyan */
+    
+    --glass-bg: rgba(10, 10, 15, 0.6);
+    --glass-bg-hover: rgba(20, 20, 30, 0.8);
+    --glass-border: rgba(0, 255, 255, 0.2);
+    --glass-highlight: rgba(255, 0, 204, 0.4);
+    --glass-shadow: 0 0 40px rgba(255, 0, 204, 0.15);
+    
+    --glass-input: rgba(0, 0, 0, 0.5);
+    --glass-input-focus: rgba(0, 255, 255, 0.1);
+    
+    --text-primary: #ffffff;
+    --text-secondary: #00ffff;
+    
+    --accent: #ff00cc;
+    --accent-glow: rgba(255, 0, 204, 0.6);
+    --accent-gradient: linear-gradient(135deg, #ff00cc 0%, #00ffff 100%);
+}
+
+body.advanced-theme::before {
+    animation: advancedBackgroundMove 10s ease-in-out infinite alternate;
+    opacity: 0.8;
+}
+
+@keyframes advancedBackgroundMove {
+    0% { transform: rotate(0deg) scale(1.1); filter: blur(60px) hue-rotate(0deg); }
+    100% { transform: rotate(30deg) scale(1.4); filter: blur(90px) hue-rotate(90deg); }
+}
+
+body.advanced-theme .card {
+    border: 1.5px solid var(--glass-border);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.1), inset 0 0 20px rgba(255, 0, 204, 0.05);
+}
+
+body.advanced-theme .card-header h2 {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Upload Zone */
+.upload-zone:hover {
+    background: rgba(0, 255, 255, 0.05) !important;
+    border-color: var(--accent) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255, 0, 204, 0.1);
+}

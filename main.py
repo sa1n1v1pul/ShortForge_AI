@@ -34,6 +34,7 @@ from pipeline.video_animator import animate_all_scenes
 from pipeline.image_enhancer import enhance_all_images
 from pipeline.caption_maker import generate_word_captions, generate_sentence_captions
 from pipeline.video_assembler import assemble_final_video
+from pipeline.video2video import process_v2v_pipeline as create_v2v_video
 
 
 def print_banner():
@@ -103,6 +104,7 @@ def create_single_video(
     manual_prompt: str | None = None,
     progress_callback=None,
     voice_profile: str = "female",
+    api_key_mode: str = "1",
 ) -> str | None:
     """
     Generate a single video from scratch.
@@ -141,6 +143,7 @@ def create_single_video(
             topic=topic,
             target_duration=target_duration,
             manual_prompt=manual_prompt,
+            api_key_mode=api_key_mode,
         )
         scenes = script["scenes"]
 

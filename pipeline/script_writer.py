@@ -8,18 +8,28 @@ Dynamic scene count based on target duration.
 import json
 import re
 import time
-from google import genai
+from google import genai  # type: ignore
 
 from config import GEMINI_API_KEY, GEMINI_API_KEY_FREE, get_scene_count, DEFAULT_DURATION
 from templates.prompts import get_script_prompt
 
 
-def _call_gemini(prompt: str, api_key: str) -> str:
+def _call_gemini(prompt: str, api_key: str, images: list[str] = None) -> str:
     """Call Gemini API with given key and return response text."""
     client = genai.Client(api_key=api_key)
+    
+    contents = [prompt]
+    if images:
+        try:
+            from PIL import Image  # type: ignore
+            for img_path in images:
+                contents.append(Image.open(img_path))
+        except ImportError:
+            print("Pillow not installed, skipping images")
+            
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=prompt,
+        contents=contents,
     )
     return response.text.strip()
 
@@ -30,6 +40,7 @@ def generate_script(
     topic: str | None = None,
     target_duration: int = DEFAULT_DURATION,
     manual_prompt: str | None = None,
+    api_key_mode: str = "1"
 ) -> dict:
     """
     Generate a video script using Gemini API.
@@ -80,9 +91,14 @@ Return ONLY valid JSON:
     else:
         prompt = get_script_prompt(niche, language, num_scenes, topic, target_duration)
 
-    # Try paid key first, fallback to free key (with retry for 503)
+    keys_to_try = []
+    if api_key_mode == "1":
+        keys_to_try = [("paid", GEMINI_API_KEY)]
+    else:
+        keys_to_try = [("free", GEMINI_API_KEY_FREE)]
+
     raw_text = None
-    for key_name, key_value in [("paid", GEMINI_API_KEY), ("free", GEMINI_API_KEY_FREE)]:
+    for key_name, key_value in keys_to_try:
         for attempt in range(3):
             try:
                 if attempt > 0:

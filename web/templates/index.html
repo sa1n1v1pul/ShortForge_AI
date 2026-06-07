@@ -30,6 +30,19 @@
                     <span class="status-dot"></span>
                     <span>Engine Ready</span>
                 </div>
+                <div class="toggle-group" style="margin-right: 12px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--glass-border);">
+                    <span class="toggle-label-alt" style="font-size: 12px; font-weight: bold; color: var(--text-muted)">STD</span>
+                    <button class="toggle-btn" id="advancedToggle">
+                        <span class="toggle-slider"></span>
+                    </button>
+                    <span class="toggle-label-alt" style="font-size: 12px; font-weight: bold; background: linear-gradient(90deg, #ff00cc, #333399); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">V2V</span>
+                <div class="toggle-group" style="margin-right: 12px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--glass-border);">
+                    <span class="toggle-label-alt" style="font-size: 12px; font-weight: bold; color: var(--text-muted)">Key: 1</span>
+                    <button class="toggle-btn" id="apiKeyToggle" title="Toggle between Primary (1) and Fallback (2) API Key">
+                        <span class="toggle-slider"></span>
+                    </button>
+                    <span class="toggle-label-alt" style="font-size: 12px; font-weight: bold; color: var(--text-muted)">2</span>
+                </div>
                 <button class="theme-toggle-btn" id="themeToggle" title="Toggle Light/Dark Mode">
                     🌙
                 </button>
@@ -46,43 +59,103 @@
                 </div>
 
                 <div class="card-body">
-                    <!-- Character/Niche Selector -->
-                    <div class="form-group">
-                        <label>🎭 Character / Niche</label>
-                        <div class="niche-grid" id="nicheGrid">
-                            {% for key, info in niches.items() %}
-                            <button class="niche-btn {% if loop.first %}active{% endif %}" data-niche="{{ key }}">
-                                <span class="niche-emoji">{{ info.emoji }}</span>
-                                <span class="niche-name">{{ info.name }}</span>
-                            </button>
-                            {% endfor %}
+                    <!-- STANDARD SETTINGS -->
+                    <div id="standardSettings">
+                        <!-- Character/Niche Selector -->
+                        <div class="form-group">
+                            <label>🎭 Character / Niche</label>
+                            <div class="niche-grid" id="nicheGrid">
+                                {% for key, info in niches.items() %}
+                                <button class="niche-btn {% if loop.first %}active{% endif %}" data-niche="{{ key }}">
+                                    <span class="niche-emoji">{{ info.emoji }}</span>
+                                    <span class="niche-name">{{ info.name }}</span>
+                                </button>
+                                {% endfor %}
+                            </div>
+                            <div class="custom-niche-container" style="margin-top: 16px;">
+                                <input type="text" id="customNicheInput" 
+                                       placeholder="Or type custom character (e.g., Aaloo and Gobhi)..." 
+                                       class="text-input">
+                            </div>
                         </div>
-                        <div class="custom-niche-container" style="margin-top: 16px;">
-                            <input type="text" id="customNicheInput" 
-                                   placeholder="Or type custom character (e.g., Aaloo and Gobhi)..." 
-                                   class="text-input">
+
+                        <!-- Script / Prompt -->
+                        <div class="form-group">
+                            <div class="label-row">
+                                <label>📝 Story Script</label>
+                                <div class="toggle-group">
+                                    <span class="toggle-label-alt">Manual</span>
+                                    <button class="toggle-btn active" id="modeToggle" data-mode="auto">
+                                        <span class="toggle-slider"></span>
+                                    </button>
+                                    <span class="toggle-label" id="modeLabel">Auto AI</span>
+                                </div>
+                            </div>
+                            <div>
+                                <textarea id="promptInput" rows="4" 
+                                          placeholder="AI will generate the script automatically based on the selected character."
+                                          class="text-input textarea" disabled></textarea>
+                                <p class="help-text" id="promptHelp">Auto mode is ON. Just click Generate!</p>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Script / Prompt -->
-                    <div class="form-group">
-                        <div class="label-row">
-                            <label>📝 Story Script</label>
-                            <div class="toggle-group">
-                                <span class="toggle-label-alt">Manual</span>
-                                <button class="toggle-btn active" id="modeToggle" data-mode="auto">
-                                    <span class="toggle-slider"></span>
-                                </button>
-                                <span class="toggle-label" id="modeLabel">Auto AI</span>
+                    <!-- ADVANCED V2V SETTINGS -->
+                    <div id="advancedSettings" style="display: none;">
+                        <div class="form-group">
+                            <label>📹 Upload Source Video</label>
+                            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('videoUpload').click()" style="border: 2px dashed var(--glass-border); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: var(--glass-bg);">
+                                <span style="font-size: 32px; display: block; margin-bottom: 8px;">📤</span>
+                                <span id="uploadText" style="font-weight: 500; color: var(--text-main);">Click to Browse or Drag & Drop</span>
+                                <input type="file" id="videoUpload" accept="video/*" style="display: none;">
+                            </div>
+                            <video id="videoPreview" controls style="display:none; width:100%; border-radius:8px; margin-top:12px; max-height:250px; background: #000;"></video>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="label-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label style="margin: 0;">🎨 V2V Change Prompt</label>
+                                <div class="toggle-group">
+                                    <span class="toggle-label-alt" style="font-size: 12px;">OFF</span>
+                                    <button class="toggle-btn active" id="customPromptToggle">
+                                        <span class="toggle-slider"></span>
+                                    </button>
+                                    <span class="toggle-label-alt" style="font-size: 12px;">ON</span>
+                                </div>
+                            </div>
+                            <textarea id="advancedPrompt" rows="3" 
+                                      placeholder="What changes do you want in the video? (e.g. 'Make it look like a magical forest')"
+                                      class="text-input textarea"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>🎙️ Audio Settings</label>
+                            <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 14px; font-weight: 500;">Remove Original Audio</span>
+                                    <div class="toggle-group">
+                                        <button class="toggle-btn active" id="removeAudioToggle">
+                                            <span class="toggle-slider"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="volumeControl" style="display: none; align-items: center; justify-content: space-between; padding-left: 10px;">
+                                    <span style="font-size: 13px; font-weight: 400; color: var(--text-muted);">Original Volume (<span id="volumeVal">50</span>%)</span>
+                                    <input type="range" id="originalVolume" min="0" max="100" value="50" style="width: 50%; accent-color: var(--mesh-1);">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="font-size: 14px; font-weight: 500;">Generate AI Voiceover (from prompt)</span>
+                                    <div class="toggle-group">
+                                        <button class="toggle-btn active" id="generateVoiceToggle">
+                                            <span class="toggle-slider"></span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <textarea id="promptInput" rows="4" 
-                                      placeholder="AI will generate the script automatically based on the selected character."
-                                      class="text-input textarea" disabled></textarea>
-                            <p class="help-text" id="promptHelp">Auto mode is ON. Just click Generate!</p>
-                        </div>
                     </div>
+
+                    <!-- Shared Settings: Language & Voice -->
 
                     <!-- Language & Voice Selector -->
                     <div class="form-group">
@@ -190,9 +263,12 @@
 
             <!-- Recent Videos -->
             <section class="card videos-card">
-                <div class="card-header" style="display:flex; justify-content:space-between;">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                     <h2>📂 Recent Videos</h2>
-                    <button class="btn-sm" onclick="loadVideos()" style="padding: 6px 12px;">🔄</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-sm" onclick="clearTemp()" style="padding: 6px 12px; border-color: rgba(239, 68, 68, 0.3); color: var(--danger);" title="Clear Temporary Files">🗑️ Clear Temp</button>
+                        <button class="btn-sm" onclick="loadVideos()" style="padding: 6px 12px;">🔄</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="video-list" id="videoList">
@@ -206,6 +282,11 @@
     <footer class="app-footer" style="text-align:center; padding: 32px; color:var(--text-muted); font-size:13px; font-weight:500;">
         <p>ShortForge AI v3 — Liquid Glass Edition</p>
     </footer>
+
+    <!-- Inject data safely without triggering IDE JS syntax errors -->
+    <script id="voiceProfilesData" type="application/json">
+        {{ voice_profiles | tojson }}
+    </script>
 
     <script>
         // ═══════════════════════════════════════════════════════
@@ -340,7 +421,8 @@
         // ═══════════════════════════════════════════════════════
         //  VOICE PREVIEW & LANGUAGE
         // ═══════════════════════════════════════════════════════
-        const voiceProfiles = {{ voice_profiles | tojson }};
+        const voiceProfilesData = document.getElementById('voiceProfilesData').textContent;
+        const voiceProfiles = JSON.parse(voiceProfilesData);
         const voiceSelect = document.getElementById('voiceSelect');
         const playVoiceBtn = document.getElementById('playVoiceBtn');
         let selectedLanguage = 'hindi';
@@ -395,6 +477,113 @@
         });
 
         // ═══════════════════════════════════════════════════════
+        //  ADVANCED MODE TOGGLE
+        // ═══════════════════════════════════════════════════════
+        let isAdvancedMode = false;
+        let uploadedVideoFile = null;
+
+        document.getElementById('advancedToggle').addEventListener('click', function() {
+            isAdvancedMode = !isAdvancedMode;
+            this.classList.toggle('active', isAdvancedMode);
+            
+            if (isAdvancedMode) {
+                document.body.classList.add('advanced-theme');
+                document.getElementById('standardSettings').style.display = 'none';
+                document.getElementById('durationGrid').parentElement.style.display = 'none';
+                document.getElementById('advancedSettings').style.display = 'block';
+                document.getElementById('generatorCard').querySelector('h2').innerHTML = '🚀 Advanced V2V Editor';
+            } else {
+                document.body.classList.remove('advanced-theme');
+                document.getElementById('standardSettings').style.display = 'block';
+                document.getElementById('durationGrid').parentElement.style.display = 'block';
+                document.getElementById('advancedSettings').style.display = 'none';
+                document.getElementById('generatorCard').querySelector('h2').innerHTML = '✨ Create New Video';
+            }
+            updateCost();
+        });
+
+        // Handle API Key Toggle
+        let apiKeyMode = "1";
+        document.getElementById('apiKeyToggle').addEventListener('click', function() {
+            const isActive = this.classList.toggle('active');
+            apiKeyMode = isActive ? "2" : "1";
+        });
+
+        // Handle Custom Prompt Toggle
+        let useCustomPrompt = true;
+        const customPromptToggle = document.getElementById('customPromptToggle');
+        const advancedPrompt = document.getElementById('advancedPrompt');
+        customPromptToggle.addEventListener('click', function() {
+            useCustomPrompt = this.classList.toggle('active');
+            advancedPrompt.disabled = !useCustomPrompt;
+            if(!useCustomPrompt) {
+                advancedPrompt.style.opacity = '0.5';
+            } else {
+                advancedPrompt.style.opacity = '1';
+            }
+        });
+
+        // Toggle handlers for new audio settings
+        let removeOriginalAudio = true;
+        let generateAIVoice = true;
+        
+        const removeAudioToggle = document.getElementById('removeAudioToggle');
+        const generateVoiceToggle = document.getElementById('generateVoiceToggle');
+        const volumeControl = document.getElementById('volumeControl');
+        const originalVolume = document.getElementById('originalVolume');
+        const volumeVal = document.getElementById('volumeVal');
+
+        removeAudioToggle.addEventListener('click', () => {
+            removeOriginalAudio = !removeOriginalAudio;
+            removeAudioToggle.classList.toggle('active', removeOriginalAudio);
+            if (removeOriginalAudio) {
+                volumeControl.style.display = 'none';
+            } else {
+                volumeControl.style.display = 'flex';
+            }
+        });
+
+        generateVoiceToggle.addEventListener('click', () => {
+            generateAIVoice = !generateAIVoice;
+            generateVoiceToggle.classList.toggle('active', generateAIVoice);
+        });
+
+        originalVolume.addEventListener('input', (e) => {
+            volumeVal.innerText = e.target.value;
+        });
+
+        originalVolume.addEventListener('input', (e) => {
+            volumeVal.innerText = e.target.value;
+        });
+
+        // Video Upload Handler
+        const videoUpload = document.getElementById('videoUpload');
+        const uploadZone = document.getElementById('uploadZone');
+        const uploadText = document.getElementById('uploadText');
+        const videoPreview = document.getElementById('videoPreview');
+
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.style.borderColor = 'var(--primary)'; });
+        uploadZone.addEventListener('dragleave', (e) => { e.preventDefault(); uploadZone.style.borderColor = 'var(--glass-border)'; });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = 'var(--glass-border)';
+            if (e.dataTransfer.files.length) {
+                videoUpload.files = e.dataTransfer.files;
+                handleVideoSelect();
+            }
+        });
+        videoUpload.addEventListener('change', handleVideoSelect);
+
+        function handleVideoSelect() {
+            if (videoUpload.files && videoUpload.files[0]) {
+                uploadedVideoFile = videoUpload.files[0];
+                uploadText.textContent = uploadedVideoFile.name;
+                videoPreview.src = URL.createObjectURL(uploadedVideoFile);
+                videoPreview.style.display = 'block';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
         //  GENERATE BUTTON
         // ═══════════════════════════════════════════════════════
         async function startGeneration() {
@@ -402,24 +591,44 @@
             btn.disabled = true;
             btn.querySelector('.btn-text').textContent = 'Starting...';
 
-            const customNiche = document.getElementById('customNicheInput').value.trim();
-            const finalNiche = customNiche || selectedNiche;
+            let formData = new FormData();
 
-            const payload = {
-                language: selectedLanguage,
-                niche: finalNiche,
-                duration: selectedDuration,
-                animate: isAnimateOn,
-                mode: isAutoMode ? 'auto' : 'manual',
-                prompt: document.getElementById('promptInput')?.value || '',
-                voice_profile: voiceSelect.value,
-            };
+            if (isAdvancedMode) {
+                if (!uploadedVideoFile) {
+                    alert("Please upload a video first!");
+                    btn.disabled = false;
+                    btn.querySelector('.btn-text').textContent = 'Generate Video';
+                    return;
+                }
+                formData.append('is_v2v', 'true');
+                formData.append('video_file', uploadedVideoFile);
+                formData.append('v2v_prompt', useCustomPrompt ? document.getElementById('advancedPrompt').value : "");
+                formData.append('remove_audio', removeOriginalAudio);
+                formData.append('original_volume', document.getElementById('originalVolume').value);
+                formData.append('generate_voice', generateAIVoice);
+                formData.append('language', selectedLanguage);
+                formData.append('voice_profile', voiceSelect.value);
+                formData.append('animate', document.getElementById('animateToggle').classList.contains('active'));
+            } else {
+                const customNiche = document.getElementById('customNicheInput').value.trim();
+                const finalNiche = customNiche || selectedNiche;
+
+                formData.append('is_v2v', 'false');
+                formData.append('language', selectedLanguage);
+                formData.append('niche', finalNiche);
+                formData.append('duration', selectedDuration);
+                formData.append('animate', isAnimateOn);
+                formData.append('mode', isAutoMode ? 'auto' : 'manual');
+                formData.append('prompt', document.getElementById('promptInput')?.value || '');
+                formData.append('voice_profile', voiceSelect.value);
+            }
+            
+            formData.append('api_key_mode', apiKeyMode);
 
             try {
                 const res = await fetch('/api/generate', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload),
+                    body: formData, // fetch will automatically set multipart/form-data boundary
                 });
                 const data = await res.json();
                 currentJobId = data.job_id;
@@ -568,6 +777,21 @@
 
         function openVideoFolder() {
             alert('Video saved in: D:\\ShortForge-AI\\output\\');
+        }
+
+        async function clearTemp() {
+            if (!confirm('Are you sure you want to clear all temporary files? You will not be able to reuse them for V2V.')) return;
+            try {
+                const res = await fetch('/api/clear_temp', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('Temporary files cleared successfully!');
+                } else {
+                    alert('Error clearing temp files: ' + data.message);
+                }
+            } catch (err) {
+                alert('Error connecting to server.');
+            }
         }
 
         // Load videos on start
